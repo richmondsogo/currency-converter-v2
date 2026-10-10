@@ -1,0 +1,28 @@
+{
+  "name": "currency-converter-v2",
+  "version": "1.1.0",
+  "description": "Cross-browser extension (Manifest V3) for instant in-page currency conversion via right-click context menu.",
+  "main": "src/background.js",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node tests/parse.test.js"
+  },
+  "keywords": [
+    "chrome-extension",
+    "firefox-addon",
+    "currency-converter",
+    "manifest-v3",
+    "exchange-rates",
+    "web-extension"
+  ],
+  "author": "Richmond Sogo <richmondsogo@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/richmondsogo/currency-converter-v2.git"
+  },
+  "bugs": {
+    "url": "https://github.com/richmondsogo/currency-converter-v2/issues"
+  },
+  "homepage": "https://github.com/richmondsogo/currency-converter-v2#readme"
+}
