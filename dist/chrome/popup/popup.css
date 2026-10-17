@@ -1,0 +1,485 @@
+/* src/popup/popup.css */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 340px;
+  min-height: 400px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #ffffff;
+  color: #09090b;
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+.popup-wrapper {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 14px;
+}
+
+/* Header */
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e4e4e7;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-badge {
+  width: 22px;
+  height: 22px;
+  background-color: #18181b;
+  color: #fafafa;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.brand-name {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #09090b;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #71717a;
+  border-radius: 4px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.icon-btn:hover {
+  color: #09090b;
+  background-color: #f4f4f5;
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid #2563eb;
+}
+
+/* Notice */
+.notice-box {
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #71717a;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.notice-icon {
+  font-weight: 600;
+  color: #18181b;
+}
+
+/* Main Body */
+.popup-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Currency Selector Row */
+.currency-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.currency-from, .currency-to {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #71717a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pill-display {
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #71717a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.currency-arrow {
+  padding-bottom: 6px;
+  font-size: 14px;
+  color: #a1a1aa;
+}
+
+/* Combobox */
+.combobox-wrapper {
+  position: relative;
+}
+
+.picker-btn {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #09090b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.picker-btn:hover {
+  border-color: #a1a1aa;
+}
+
+.picker-btn:focus-visible {
+  border-color: #2563eb;
+  outline: 2px solid rgba(37, 99, 235, 0.2);
+}
+
+.dropdown-chevron {
+  font-size: 10px;
+  color: #71717a;
+}
+
+.currency-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+}
+
+.search-input {
+  border: none;
+  border-bottom: 1px solid #e4e4e7;
+  padding: 8px 10px;
+  font-size: 12px;
+  outline: none;
+  background: transparent;
+  color: inherit;
+}
+
+.currency-options-list {
+  overflow-y: auto;
+  max-height: 180px;
+  padding: 4px 0;
+}
+
+.option-group-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #a1a1aa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 10px 2px;
+}
+
+.option-item {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #09090b;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+}
+
+.option-item:hover, .option-item[aria-selected="true"] {
+  background-color: #f4f4f5;
+  font-weight: 500;
+}
+
+/* Primary Button */
+.btn-primary {
+  background-color: #18181b;
+  color: #fafafa;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, background-color 0.15s;
+  outline: none;
+  text-align: center;
+}
+
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-primary:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.btn-primary:disabled {
+  background-color: #a1a1aa;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-primary.active-revert {
+  background-color: #ffffff;
+  color: #18181b;
+  border: 1px solid #e4e4e7;
+}
+
+.btn-primary.active-revert:hover {
+  background-color: #f4f4f5;
+}
+
+/* Live Status */
+.status-bar {
+  font-size: 11px;
+  color: #71717a;
+  text-align: center;
+  min-height: 16px;
+}
+
+/* Site Section */
+.site-section {
+  background: #fbfbfb;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.site-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: #71717a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toggle-label {
+  font-size: 12px;
+  color: #09090b;
+  cursor: pointer;
+}
+
+.toggle-input {
+  cursor: pointer;
+}
+
+.override-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.override-label {
+  font-size: 11px;
+  color: #71717a;
+}
+
+.select-override {
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #09090b;
+  outline: none;
+}
+
+/* Footer */
+.popup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid #e4e4e7;
+  font-size: 11px;
+  color: #a1a1aa;
+}
+
+.rates-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.retry-btn {
+  background: none;
+  border: 1px solid #e4e4e7;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+  cursor: pointer;
+  color: #18181b;
+}
+
+.footer-link {
+  color: #71717a;
+  text-decoration: none;
+}
+
+.footer-link:hover {
+  color: #09090b;
+  text-decoration: underline;
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #09090b;
+    color: #fafafa;
+  }
+
+  .popup-header, .popup-footer {
+    border-color: #27272a;
+  }
+
+  .brand-badge {
+    background-color: #fafafa;
+    color: #18181b;
+  }
+
+  .brand-name {
+    color: #fafafa;
+  }
+
+  .notice-box {
+    background-color: #18181b;
+    border-color: #27272a;
+    color: #a1a1aa;
+  }
+
+  .notice-icon {
+    color: #fafafa;
+  }
+
+  .pill-display {
+    background-color: #18181b;
+    border-color: #27272a;
+    color: #a1a1aa;
+  }
+
+  .picker-btn {
+    background-color: #18181b;
+    border-color: #27272a;
+    color: #fafafa;
+  }
+
+  .currency-dropdown {
+    background-color: #18181b;
+    border-color: #27272a;
+  }
+
+  .search-input {
+    border-color: #27272a;
+  }
+
+  .option-item {
+    color: #fafafa;
+  }
+
+  .option-item:hover, .option-item[aria-selected="true"] {
+    background-color: #27272a;
+  }
+
+  .btn-primary {
+    background-color: #fafafa;
+    color: #18181b;
+  }
+
+  .btn-primary.active-revert {
+    background-color: #18181b;
+    color: #fafafa;
+    border-color: #27272a;
+  }
+
+  .btn-primary.active-revert:hover {
+    background-color: #27272a;
+  }
+
+  .site-section {
+    background-color: #121214;
+    border-color: #27272a;
+  }
+
+  .toggle-label {
+    color: #fafafa;
+  }
+
+  .select-override {
+    background-color: #18181b;
+    border-color: #27272a;
+    color: #fafafa;
+  }
+
+  .retry-btn {
+    border-color: #27272a;
+    color: #fafafa;
+  }
+
+  .footer-link {
+    color: #a1a1aa;
+  }
+
+  .footer-link:hover {
+    color: #fafafa;
+  }
+}

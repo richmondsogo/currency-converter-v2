@@ -1,125 +1,107 @@
-# Design Philosophy and Technical UX Specifications
+# Design Philosophy & Technical UI/UX Specifications
 
-> **Project**: Currency Converter  
-> **Architecture**: Browser Extension (Manifest V3)  
-> **Audience**: Developers, Contributors, and UI Reviewers
+> **Project**: Currency Convertr  
+> **Version**: 2.0.0 ("Google Translate for Prices")  
+> **Architecture**: Cross-Browser Web Extension (Manifest V3)  
+> **Design Tokens**: Zinc Neutral Scale, Shadcn / Modern Editorial Typography, Shadow DOM UI Isolation
 
 ---
 
 ## 1. Executive Design Principles
 
-Currency Converter adheres to an intentional, restrained design philosophy centered around five core tenets:
+Currency Convertr v2.0.0 evolves from a contextual text converter to a full in-page translation experience inspired by Google Translate, adhering to four foundational tenets:
 
-### 1.1 Zero-DOM Overhead ("Invisible UI")
-Most browser extensions introduce visual friction by injecting heavy DOM elements, floating buttons, or unstyled tooltips into target web pages. This degrades host website layout stability, triggers Content Security Policy (CSP) conflicts, and creates visual distraction.
+### 1.1 In-Place Harmony & Zero Page Distruption
+Price conversion should feel native to the website you are browsing:
+- **Preserved Geometry**: Converted numbers fit smoothly into host page typography and layout without causing layout shifts (CLS = 0).
+- **Shadow DOM Isolation**: The in-page floating Translate bar and custom price tooltips live inside an isolated open Shadow DOM root (`#currency-convertr-root`). Host page stylesheets cannot bleed into extension UI, and extension styles cannot interfere with host page aesthetics.
+- **Byte-for-Byte Reversibility**: Any converted page can be restored to its exact original state at the touch of a button.
 
-Currency Converter operates on an **Invisible UI** model:
-- **No Injected Nodes**: Zero modification of the host webpage's DOM.
-- **Native Context Delivery**: Interaction takes place entirely within the browser's native context menu.
-- **System Notification Presentation**: Results appear via native operating system desktop notifications, maintaining visual harmony with the host OS.
+### 1.2 Non-Intrusive, Calm Interfaces
+- The in-page floating Translate pill attaches at the top center of the viewport with a subtle slide-down animation, respects dark mode, provides quick target currency adjustments, and is dismissible for the current browsing session.
+- Tooltips only appear on intentional hover, displaying original amounts, source currencies, and the exact exchange rate used.
 
-### 1.2 Calm and Non-Intrusive
-Interfaces should serve the user without demanding ongoing attention. The extension produces visual output only when explicitly invoked by user action and dismisses automatically according to operating system notification timeouts.
+### 1.3 High-Precision Typography & Localized Formatting
+- Monetary calculations adhere to standard ISO 4217 minor-unit conventions (e.g. 0 decimals for JPY/KRW/VND, 2 decimals for USD/EUR/GBP/NGN, 3 decimals for BHD/KWD/OMR).
+- Tabular figures (`font-variant-numeric: tabular-nums`) are enforced on all monetary displays for numerical clarity.
 
-### 1.3 Precision in Formatting
-Monetary figures require exact formatting. Ambiguity between thousands grouping and decimal separators leads to financial miscalculation. The extension enforces unambiguous formatting via `Intl.NumberFormat` localized for standard financial clarity.
-
-### 1.4 Predictability Over Novelty
-Familiarity builds user trust. The context menu structure mirrors standard operating system submenu conventions, ordering target currencies logically and displaying unambiguous currency labels.
-
----
-
-## 2. Visual Language and Iconography
-
-### 2.1 Brand Glyph
-The extension utilizes a high-contrast, dark-mode foundational glyph (`fx`, representing Foreign Exchange):
-- **Base Surface**: Solid zinc dark fill (`#18181b`).
-- **Foreground Glyph**: High-contrast off-white (`#fafafa`).
-- **Corner Curvature**: Continuous 22% squircle radius relative to icon dimensions.
-- **Typeface**: System-native grotesque sans-serif (`-apple-system`, `BlinkMacSystemFont`, `Segoe UI`, `Roboto`).
-
-### 2.2 Icon DPI Scaling Matrix
-Icons are generated and rasterized across four standard web extension densities:
-
-| Asset | Dimension | Target Context |
-|---|---|---|
-| `icon16.png` | 16 &times; 16 px | Browser context menu, extension toolbar sub-indicator |
-| `icon48.png` | 48 &times; 48 px | Extension management page (`chrome://extensions`) |
-| `icon96.png` | 96 &times; 96 px | High-DPI / Retina extension displays |
-| `icon128.png` | 128 &times; 128 px | Chrome Web Store showcase and installation modal |
+### 1.4 Predictability & Accessibility
+- Full WCAG AA contrast compliance across both Light and Dark themes.
+- Comprehensive keyboard accessibility for all interactive controls (searchable combobox with Arrow navigation, Esc to close, Enter to select, explicit ARIA roles).
 
 ---
 
-## 3. Context Menu Interaction Model
+## 2. Design System & Token Foundation
 
-### 3.1 Trigger Context
-The context menu registration is scoped strictly to:
-```javascript
-contexts: ["selection"]
-```
-This guarantees the extension never appears in the right-click menu unless the user has actively selected text, eliminating right-click menu bloat during general web browsing.
+The design system utilizes a curated Zinc palette, matching clean modern desktop software.
 
-### 3.2 Menu Structure
-```text
-Convert currency (Parent Menu Item)
-├── To NGN (Nigerian Naira)
-├── To USD (US Dollar)
-├── To EUR (Euro)
-├── To GBP (British Pound)
-├── To JPY (Japanese Yen)
-├── To CAD (Canadian Dollar)
-├── To AUD (Australian Dollar)
-└── To INR (Indian Rupee)
-```
+### 2.1 Palette Tokens
 
-Target selections are ordered based on regional liquidity and common international conversion demand.
+| Token | Light Theme | Dark Theme | Purpose |
+|---|---|---|---|
+| `--cc-bg-surface` | `#ffffff` | `#18181b` | Cards, popups, and dropdown containers |
+| `--cc-bg-subtle` | `#f4f4f5` | `#27272a` | Pill displays, inputs, chip backgrounds |
+| `--cc-border-subtle` | `#e4e4e7` | `#3f3f46` | Separators and input borders |
+| `--cc-text-primary` | `#09090b` | `#fafafa` | Primary headings, titles, and price values |
+| `--cc-text-secondary` | `#71717a` | `#a1a1aa` | Labels, metadata, and exchange rates |
+| `--cc-accent-brand` | `#18181b` | `#fafafa` | Primary buttons and brand badges |
+| `--cc-highlight-bg` | `rgba(37, 99, 235, 0.08)` | `rgba(96, 165, 250, 0.15)` | Converted price highlight background |
+| `--cc-highlight-border` | `#3b82f6` | `#60a5fa` | Converted price underline accent |
 
 ---
 
-## 4. Output Formatting Specifications
+## 3. Surface Specifications
 
-Desktop notification outputs follow a standardized, two-line financial summary pattern:
+### 3.1 Toolbar Action Popup (`src/popup/`)
+- **Width**: Compact ~340px width.
+- **Components**:
+  - Brand header with `fx` badge and gear shortcut to Options.
+  - From &rarr; To currency row featuring a searchable, keyboard-navigable dropdown combobox grouped by "Pinned", "Recent", and "All currencies".
+  - Large primary action button: "Convert this page" &harr; "Show original".
+  - Live status indicator (e.g. `✓ 14 prices converted · Rates: ECB Reference, updated today`).
+  - Per-site toggles: "Always convert on this site" and "Never convert on this site".
+  - Domain currency override selector (assumes site-specific currency if auto-detection is ambiguous).
+  - Footer with live rate status, retry button on error, and deep link to Options.
 
-### 4.1 Structure
-```text
-[Formatted Input Amount] [Source ISO] = [Formatted Output Amount] [Target ISO]
-Rate: 1 [Source ISO] = [Formatted Unit Rate] [Target ISO]
-```
+### 3.2 In-Page Translate Floating Bar (`src/content/ui.js` & `ui.css`)
+- **Container**: `position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 2147483647;`.
+- **Form Factor**: Curved pill bar (`border-radius: 9999px`) with soft drop-shadow (`box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1)`).
+- **Controls**:
+  - Extension brand mark (`fx`).
+  - Active target currency badge.
+  - "Show original" button.
+  - Quick target currency switcher `<select>`.
+  - Dismiss button (`✕`), which closes the bar for that tab session without reverting prices.
 
-### 4.2 Formatting Implementation
-```javascript
-const fmt = (n, cur) =>
-  new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n) + " " + cur;
-```
+### 3.3 Hover Tooltip
+- Appears when hovering over any converted price.
+- Displays:
+  - Original price and currency: `Original: $3,499.00 USD`.
+  - Calculated rate: `Rate: 1 USD = 1,650.00 NGN · ECB Reference`.
+- Styled as a dark floating card with an indicator caret, automatically positioned above the target element.
 
-### 4.3 Examples
-- Standard Dot-Decimal:  
-  `1,299.99 USD = 1,159.59 EUR`  
-  `Rate: 1 USD = 0.89 EUR`
-- Emerging Market / Regional:  
-  `100.00 USD = 132,987.05 NGN`  
-  `Rate: 1 USD = 1,329.87 NGN`
+### 3.4 Right-Click Context Menu (Selection)
+- Preserves the right-click selection conversion flow from v1.
+- Provides submenus for the user's top pinned currencies (default: NGN, USD, EUR, GBP, JPY, CAD, AUD, INR; customizable in Options).
+- Outputs results via native operating system desktop notifications.
+
+### 3.5 Options Dashboard (`src/options/`)
+- Clean full-page options dashboard allowing customization of:
+  - Default target currency.
+  - Pinned currency chips (add/remove up to 8).
+  - In-place display mode (`Replace`, `Append`, `Replace + Highlight`).
+  - Decimal rounding preference (currency minor units vs. round to whole numbers).
+  - Ambiguous `$` resolution preference (default: USD).
+  - Cryptocurrency visibility toggle.
+  - Per-site conversion rules management table.
+  - JSON configuration export and import.
 
 ---
 
-## 5. Error State Feedback
+## 4. Verification & QA Protocol
 
-Error messages must be actionable, concise, and informative:
-
-| Failure Scenario | Notification Title | Notification Body |
-|---|---|---|
-| **Empty Selection** | `Currency Converter` | `No text selected. Highlight a price and try again.` |
-| **No Parseable Digits** | `Currency Converter` | `No valid numeric price found in "[Truncated Selection]".` |
-| **Network or Rate Failure** | `Currency Converter` | `Unable to convert [FROM] to [TO]. Verify network connection.` |
-
----
-
-## 6. Verification and Design QA
-
-Any modifications to visual assets, notifications, or parsing logic must be verified in active browser runtimes prior to release:
-1. Verify context menu display on highlighted DOM text across both dark and light web themes.
-2. Verify native notification presentation in Windows Action Center / macOS Notification Center / Linux desktop environments.
-3. Validate icon crispness at 100%, 125%, 150%, and 200% OS display scaling.
+Prior to production release:
+1. Confirm popup and in-page bar render correctly in both light mode and dark mode (`prefers-color-scheme: dark`).
+2. Verify that high-contrast focus rings (`outline: 2px solid #2563eb`) are visible during keyboard tab navigation.
+3. Verify that the in-page bar and tooltips never shift host page elements or introduce horizontal scrollbars.
+4. Verify that `web-ext lint` completes with zero errors, notices, or warnings.

@@ -1,309 +1,380 @@
-// ============================================================
-// Currency Converter – Universal Background Script (MV3)
-// Supports both Chromium (Chrome/Edge/Brave) & Firefox (Gecko)
-//
-// Dual-API Architecture:
-// 1. Primary: Frankfurter (api.frankfurter.dev) - fast ECB rates
-// 2. Fallback: Fawaz Ahmed API (jsdelivr) - 170+ currencies (NGN, etc.)
-// ============================================================
+// src/background.js
+import { RatesEngine, calculateRate, convertAmount } from './shared/rates.js';
+import { SettingsManager, DEFAULT_SETTINGS } from './shared/settings.js';
+import { formatCurrency } from './shared/format.js';
+import { detectCurrency, extractAmount } from './shared/parser.js';
+import { MSG } from './shared/messaging.js';
+import { getBrowser, sendTabMessage } from './shared/browser.js';
 
-// ----------------------------------------------------------
-// 0. BROWSER API COMPATIBILITY SHIM
-// ----------------------------------------------------------
-const api = typeof browser !== "undefined" ? browser : chrome;
+const api = getBrowser();
+const ratesEngine = new RatesEngine();
+const settingsManager = new SettingsManager();
 
-// ----------------------------------------------------------
-// 1. CURRENCY SYMBOL / CODE MAPS
-// ----------------------------------------------------------
-const SYMBOL_MAP = {
-  "CAD$": "CAD",
-  "CA$":  "CAD",
-  "NZ$":  "NZD",
-  "HK$":  "HKD",
-  "US$":  "USD",
-  "A$":   "AUD",
-  "AU$":  "AUD",
-  "S$":   "SGD",
-  "SG$":  "SGD",
-  "R$":   "BRL",
-  "CHF":  "CHF",
-  "€":    "EUR",
-  "£":    "GBP",
-  "¥":    "JPY",
-  "₦":    "NGN",
-  "₹":    "INR",
-  "₩":    "KRW",
-  "zł":   "PLN",
-  "Kč":   "CZK",
-  "kr":   "SEK",
-  "$":    "USD", // must be LAST so multi-char symbols match first
-};
+// Cache of active tab status: tabId -> { isConverted, count, targetCurrency }
+const tabStatusMap = new Map();
 
-const ISO_CODES = [
-  "USD","EUR","GBP","CAD","AUD","NZD","JPY","INR","KRW","CHF",
-  "ZAR","HKD","SGD","MXN","BRL","SEK","NOK","DKK","PLN","CZK",
-  "HUF","TRY","CNY","THB","MYR","PHP","IDR","AED","SAR","EGP",
-  "NGN","KES","GHS","MAD","CLP","COP","PEN","ARS","PKR","ILS",
-];
-
-// Currencies Frankfurter supports natively as base/quote.
-// Anything outside this set (e.g. NGN, GHS, KES) routes to Fawaz fallback API.
-const FRANKFURTER_SUPPORTED = new Set([
-  "USD","EUR","GBP","CAD","AUD","NZD","JPY","INR","KRW","CHF",
-  "ZAR","HKD","SGD","MXN","BRL","SEK","NOK","DKK","PLN","CZK",
-  "HUF","TRY","CNY","THB","MYR","PHP","IDR","AED","SAR","ILS",
-]);
-
-// ----------------------------------------------------------
-// 2. TARGET CONVERSION CURRENCIES
-// ----------------------------------------------------------
-const TARGETS = [
-  { id: "NGN", label: "To NGN (Nigerian Naira)"   },
-  { id: "USD", label: "To USD (US Dollar)"         },
-  { id: "EUR", label: "To EUR (Euro)"              },
-  { id: "GBP", label: "To GBP (British Pound)"    },
-  { id: "JPY", label: "To JPY (Japanese Yen)"     },
-  { id: "CAD", label: "To CAD (Canadian Dollar)"  },
-  { id: "AUD", label: "To AUD (Australian Dollar)"},
-  { id: "INR", label: "To INR (Indian Rupee)"     },
-];
-
-// ----------------------------------------------------------
-// 3. PARSING LOGIC
-// ----------------------------------------------------------
-
-function detectCurrency(text) {
-  // Longest symbol first
-  for (const [sym, code] of Object.entries(SYMBOL_MAP)) {
-    if (text.includes(sym)) return code;
-  }
-  // ISO code search
-  const upper = text.toUpperCase();
-  for (const code of ISO_CODES) {
-    if (new RegExp(`\\b${code}\\b`).test(upper)) return code;
-  }
-  return "USD"; // Safe default
-}
-
-function extractAmount(text) {
-  // Strip currency symbols and ISO codes
-  let s = text
-    .replace(/[£€₦₹₩¥₣$]/g, " ")
-    .replace(/\b[A-Z]{3}\b/g, " ")
-    .trim();
-
-  // Extract the first number sequence
-  const match = s.match(/\d[\d,. ]*/);
-  if (!match) return null;
-
-  let raw = match[0].trim();
-
-  // Normalize number formats:
-  // 1. Both comma and dot present:
-  //    1,299.99 -> comma is thousands, dot is decimal
-  //    1.299,99 -> dot is thousands, comma is decimal
-  if (raw.includes(",") && raw.includes(".")) {
-    if (raw.indexOf(",") < raw.indexOf(".")) {
-      raw = raw.replace(/,/g, "");
-    } else {
-      raw = raw.replace(/\./g, "").replace(",", ".");
-    }
-  } else if (raw.includes(",")) {
-    // Only comma present: e.g. "15,50" vs "1,500"
-    // Standard price decimal typically has 1 or 2 digits after comma
-    if (/,\d{1,2}$/.test(raw)) {
-      raw = raw.replace(",", ".");
-    } else {
-      raw = raw.replace(/,/g, "");
-    }
-  }
-
-  // Remove whitespace separators
-  raw = raw.replace(/\s+/g, "");
-
-  const n = parseFloat(raw);
-  return isNaN(n) || n <= 0 ? null : n;
-}
-
-// ----------------------------------------------------------
-// 4. USER FEEDBACK / NOTIFICATION
-// ----------------------------------------------------------
+// -----------------------------------------------------------------------------
+// 1. NOTIFICATIONS
+// -----------------------------------------------------------------------------
 function notify(title, message) {
+  if (!api || !api.notifications) return;
   const notifId = `cc-notif-${Date.now()}`;
-  const options = {
-    type: "basic",
-    iconUrl: api.runtime.getURL("icons/icon48.png"),
-    title,
-    message,
-  };
-
   try {
-    api.notifications.create(notifId, options, () => {
-      if (api.runtime.lastError) {
-        console.warn("[CurrencyConverter] Notification callback error:", api.runtime.lastError.message);
-      }
-    });
-  } catch (err) {
-    console.error("[CurrencyConverter] Notification failed:", err);
-  }
-}
-
-// ----------------------------------------------------------
-// 5. CONVERSION APIS
-// ----------------------------------------------------------
-
-/**
- * PRIMARY: Frankfurter (api.frankfurter.dev/v1/latest)
- * Direct, fast, updated from European Central Bank reference rates.
- */
-async function convertViaFrankfurter(amount, from, to) {
-  const url = `https://api.frankfurter.dev/v1/latest?amount=${amount}&from=${from}&to=${to}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Frankfurter HTTP ${res.status}`);
-  const data = await res.json();
-  if (!data.rates || data.rates[to] == null) {
-    throw new Error("No rate in Frankfurter response");
-  }
-  return data.rates[to];
-}
-
-/**
- * FALLBACK: Fawaz Ahmed Currency API via jsDelivr CDN
- * Free, open, coverage for 170+ world currencies including NGN.
- */
-async function convertViaFawaz(amount, from, to) {
-  const f = from.toLowerCase();
-  const t = to.toLowerCase();
-  const url = `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${f}.json`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Fawaz API HTTP ${res.status}`);
-  const data = await res.json();
-  const rate = data[f]?.[t];
-  if (rate == null) {
-    throw new Error(`No rate found for ${from}→${to} in fallback API`);
-  }
-  return amount * rate;
-}
-
-/**
- * Main convert function:
- * Routes to Frankfurter if both currencies are supported;
- * seamlessly falls back to Fawaz Ahmed API on failure or exotic currency pairs.
- */
-async function convert(amount, from, to) {
-  if (from === to) return amount;
-
-  const useFrankfurter = FRANKFURTER_SUPPORTED.has(from) && FRANKFURTER_SUPPORTED.has(to);
-
-  if (useFrankfurter) {
-    try {
-      return await convertViaFrankfurter(amount, from, to);
-    } catch (err) {
-      console.warn("[CurrencyConverter] Frankfurter failed, falling back to Fawaz:", err.message);
-    }
-  }
-
-  return await convertViaFawaz(amount, from, to);
-}
-
-// ----------------------------------------------------------
-// 6. BUILD CONTEXT MENUS
-// ----------------------------------------------------------
-function buildMenus() {
-  if (!api.contextMenus) {
-    console.warn("[CurrencyConverter] contextMenus API not available.");
-    return;
-  }
-
-  api.contextMenus.removeAll(() => {
-    // Parent Menu Item
-    api.contextMenus.create({
-      id: "cc-parent",
-      title: "Convert currency",
-      contexts: ["selection"],
+    api.notifications.create(notifId, {
+      type: 'basic',
+      iconUrl: api.runtime.getURL('icons/icon48.png'),
+      title,
+      message
     }, () => {
       if (api.runtime.lastError) {
-        // Suppress benign duplicate ID or lifecycle warnings
+        // Ignored
       }
     });
+  } catch (err) {
+    console.warn('[CurrencyConverter] Notification failed:', err);
+  }
+}
 
-    // Submenu Items
-    for (const { id, label } of TARGETS) {
+// -----------------------------------------------------------------------------
+// 2. CONTEXT MENUS (Selection conversion + Page-level actions)
+// -----------------------------------------------------------------------------
+async function buildMenus() {
+  if (!api || !api.contextMenus) return;
+
+  api.contextMenus.removeAll(async () => {
+    try {
+      const settings = await settingsManager.getSettings();
+      const pinned = settings.pinnedCurrencies || DEFAULT_SETTINGS.pinnedCurrencies;
+      const lastTarget = settings.lastUsedTarget || settings.targetCurrency || 'USD';
+
+      // 1. Selection Parent Menu (v1 compatibility)
       api.contextMenus.create({
-        id: `cc-${id}`,
-        parentId: "cc-parent",
-        title: label,
-        contexts: ["selection"],
+        id: 'cc-parent',
+        title: 'Convert currency',
+        contexts: ['selection']
       }, () => {
-        if (api.runtime.lastError) {
-          // Suppress benign duplicate ID or lifecycle warnings
-        }
+        if (api.runtime.lastError) {}
       });
+
+      // Selection submenus for pinned currencies
+      for (const cur of pinned) {
+        api.contextMenus.create({
+          id: `cc-sel-${cur}`,
+          parentId: 'cc-parent',
+          title: `To ${cur}`,
+          contexts: ['selection']
+        }, () => {
+          if (api.runtime.lastError) {}
+        });
+      }
+
+      // 2. Page-level Actions
+      api.contextMenus.create({
+        id: 'cc-page-convert',
+        title: `Convert prices on this page to ${lastTarget}`,
+        contexts: ['page']
+      }, () => {
+        if (api.runtime.lastError) {}
+      });
+
+      api.contextMenus.create({
+        id: 'cc-page-revert',
+        title: 'Show original prices',
+        contexts: ['page']
+      }, () => {
+        if (api.runtime.lastError) {}
+      });
+    } catch (err) {
+      console.warn('[CurrencyConverter] Failed to build context menus:', err);
     }
   });
 }
 
-// Build menus on extension install / update
-api.runtime.onInstalled.addListener(() => {
-  buildMenus();
-});
+// -----------------------------------------------------------------------------
+// 3. PAGE INJECTION & CONVERSION ORCHESTRATION
+// -----------------------------------------------------------------------------
+async function ensureContentScriptInjected(tabId) {
+  if (!api.scripting || !api.scripting.executeScript) return false;
 
-// Re-verify menus on browser startup
-if (api.runtime.onStartup) {
-  api.runtime.onStartup.addListener(() => {
-    buildMenus();
+  // Ping tab to check if content script is already listening
+  const status = await sendTabMessage(tabId, { type: MSG.GET_PAGE_STATUS });
+  if (status !== null && status !== undefined) {
+    return true; // Already injected
+  }
+
+  // Inject content.js
+  try {
+    await api.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      files: ['content.js']
+    });
+    return true;
+  } catch (err) {
+    console.warn('[CurrencyConverter] executeScript failed on tab', tabId, err.message);
+    return false;
+  }
+}
+
+async function convertPageOnTab(tabId, targetCurrency = null) {
+  const injected = await ensureContentScriptInjected(tabId);
+  if (!injected) return;
+
+  const settings = await settingsManager.getSettings();
+  const target = targetCurrency || settings.lastUsedTarget || settings.targetCurrency || 'USD';
+  const ratesData = await ratesEngine.getRates();
+
+  // Remember last used target
+  await settingsManager.updateSettings({ lastUsedTarget: target });
+  buildMenus(); // update "Convert prices on this page to <target>" title
+
+  const response = await sendTabMessage(tabId, {
+    type: MSG.CONVERT_PAGE,
+    payload: {
+      targetCurrency: target,
+      ratesTable: ratesData.rates,
+      rateDate: ratesData.date,
+      provider: ratesData.provider,
+      displayMode: settings.displayMode,
+      roundWhole: settings.roundWhole,
+      showInPageBar: settings.showInPageBar
+    }
+  });
+
+  if (response && response.success) {
+    tabStatusMap.set(tabId, {
+      isConverted: true,
+      count: response.count,
+      targetCurrency: target
+    });
+  }
+}
+
+async function revertPageOnTab(tabId) {
+  const response = await sendTabMessage(tabId, { type: MSG.REVERT_PAGE });
+  if (response && response.success) {
+    tabStatusMap.set(tabId, {
+      isConverted: false,
+      count: 0,
+      targetCurrency: null
+    });
+  }
+}
+
+async function togglePageConversionOnTab(tabId) {
+  const currentStatus = tabStatusMap.get(tabId);
+  if (currentStatus && currentStatus.isConverted) {
+    await revertPageOnTab(tabId);
+  } else {
+    await convertPageOnTab(tabId);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// 4. SELECTION CONVERSION (v1 feature)
+// -----------------------------------------------------------------------------
+async function handleSelectionConversion(text, targetCurrency) {
+  const raw = (text || '').trim();
+  if (!raw) {
+    notify('Currency Converter', 'No text selected. Highlight a price and try again.');
+    return;
+  }
+
+  const amount = extractAmount(raw);
+  if (amount === null) {
+    notify('Currency Converter', `No valid numeric price found in "${raw.slice(0, 50)}".`);
+    return;
+  }
+
+  const fromCurrency = detectCurrency(raw);
+
+  try {
+    const ratesData = await ratesEngine.getRates();
+    const rate = calculateRate(fromCurrency, targetCurrency, ratesData.rates);
+    const converted = amount * rate;
+
+    const formattedFrom = formatCurrency(amount, fromCurrency);
+    const formattedTo = formatCurrency(converted, targetCurrency);
+    const formattedUnit = formatCurrency(rate, targetCurrency);
+
+    notify(
+      'Currency Converter',
+      `${formattedFrom} = ${formattedTo}\nRate: 1 ${fromCurrency} = ${formattedUnit}`
+    );
+  } catch (err) {
+    console.error('[CurrencyConverter] Selection conversion failed:', err);
+    notify(
+      'Currency Converter',
+      `Unable to convert ${fromCurrency} to ${targetCurrency}. Verify network connection.`
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// 5. EVENT LISTENERS
+// -----------------------------------------------------------------------------
+
+// Context Menu Clicks
+if (api && api.contextMenus && api.contextMenus.onClicked) {
+  api.contextMenus.onClicked.addListener(async (info, tab) => {
+    const menuId = info.menuItemId;
+
+    // Selection conversion
+    if (menuId.startsWith('cc-sel-')) {
+      const targetCurrency = menuId.replace('cc-sel-', '');
+      await handleSelectionConversion(info.selectionText, targetCurrency);
+      return;
+    }
+
+    // Page level convert
+    if (menuId === 'cc-page-convert' && tab && tab.id) {
+      await convertPageOnTab(tab.id);
+      return;
+    }
+
+    // Page level revert
+    if (menuId === 'cc-page-revert' && tab && tab.id) {
+      await revertPageOnTab(tab.id);
+      return;
+    }
   });
 }
 
-// ----------------------------------------------------------
-// 7. CLICK HANDLER
-// ----------------------------------------------------------
-api.contextMenus.onClicked.addListener(async (info) => {
-  if (!info.menuItemId || !info.menuItemId.startsWith("cc-") || info.menuItemId === "cc-parent") {
-    return;
-  }
+// Keyboard Shortcut Command
+if (api && api.commands && api.commands.onCommand) {
+  api.commands.onCommand.addListener(async (command) => {
+    if (command === 'toggle-page-conversion') {
+      if (api.tabs && api.tabs.query) {
+        api.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+          if (tabs && tabs[0] && tabs[0].id) {
+            await togglePageConversionOnTab(tabs[0].id);
+          }
+        });
+      }
+    }
+  });
+}
 
-  const toCurrency = info.menuItemId.replace("cc-", "");
-  const raw = (info.selectionText || "").trim();
+// Runtime Messaging Dispatcher
+if (api && api.runtime && api.runtime.onMessage) {
+  api.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (!message || !message.type) return;
 
-  // Guard: empty selection
-  if (!raw) {
-    notify("Currency Converter", "No text selected. Highlight a price and try again.");
-    return;
-  }
+    // Rates query
+    if (message.type === MSG.GET_RATES) {
+      ratesEngine.getRates()
+        .then(ratesData => sendResponse(ratesData))
+        .catch(err => sendResponse({ error: err.message }));
+      return true;
+    }
 
-  // Parse Amount
-  const amount = extractAmount(raw);
-  if (amount === null) {
-    notify("Currency Converter", `No valid numeric price found in "${raw.slice(0, 50)}".`);
-    return;
-  }
+    // Settings query
+    if (message.type === MSG.GET_SETTINGS) {
+      settingsManager.getSettings()
+        .then(settings => sendResponse(settings))
+        .catch(err => sendResponse({ error: err.message }));
+      return true;
+    }
 
-  // Detect Source Currency
-  const fromCurrency = detectCurrency(raw);
+    // Settings update
+    if (message.type === MSG.UPDATE_SETTINGS) {
+      settingsManager.updateSettings(message.payload || {})
+        .then(updated => {
+          buildMenus();
+          sendResponse({ success: true, settings: updated });
+        })
+        .catch(err => sendResponse({ success: false, error: err.message }));
+      return true;
+    }
 
-  // Perform Conversion
+    // Page status reported by content script
+    if (message.type === MSG.PAGE_STATUS) {
+      if (sender && sender.tab && sender.tab.id) {
+        tabStatusMap.set(sender.tab.id, message.payload);
+      }
+      sendResponse({ received: true });
+      return false;
+    }
+  });
+}
+
+// Dynamic content script auto-convert registration / tabs.onUpdated fallback
+async function syncAutoConvertRules() {
   try {
-    const result = await convert(amount, fromCurrency, toCurrency);
+    const settings = await settingsManager.getSettings();
+    const approvedSites = [];
 
-    const fmt = (n, cur) =>
-      new Intl.NumberFormat("en-US", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(n) + " " + cur;
+    for (const [hostname, rule] of Object.entries(settings.perSite || {})) {
+      if (rule.autoConvert) {
+        approvedSites.push(hostname);
+      }
+    }
 
-    const unitRate = result / amount;
+    // Try scripting.registerContentScripts if supported
+    if (api.scripting && api.scripting.registerContentScripts) {
+      try {
+        const existing = await api.scripting.getRegisteredContentScripts();
+        const existingIds = existing.map(s => s.id);
+        if (existingIds.includes('cc-autoconvert-sites')) {
+          await api.scripting.unregisterContentScripts({ ids: ['cc-autoconvert-sites'] });
+        }
 
-    notify(
-      "Currency Converter",
-      `${fmt(amount, fromCurrency)} = ${fmt(result, toCurrency)}\n` +
-      `Rate: 1 ${fromCurrency} = ${fmt(unitRate, toCurrency)}`
-    );
-  } catch (err) {
-    console.error("[CurrencyConverter] Conversion failed:", err);
-    notify(
-      "Currency Converter",
-      `Unable to convert ${fromCurrency} to ${toCurrency}. Verify network connection.`
-    );
-  }
-});
+        if (approvedSites.length > 0) {
+          const matches = approvedSites.map(h => `*://*.${h}/*`).concat(approvedSites.map(h => `*://${h}/*`));
+          await api.scripting.registerContentScripts([{
+            id: 'cc-autoconvert-sites',
+            matches,
+            js: ['content.js'],
+            runAt: 'document_idle',
+            allFrames: true
+          }]);
+        }
+      } catch (scriptingErr) {
+        // Fallback handled via tabs.onUpdated
+      }
+    }
+  } catch {}
+}
+
+// tabs.onUpdated fallback for auto-convert origins
+if (api && api.tabs && api.tabs.onUpdated) {
+  api.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && tab && tab.url && tab.url.startsWith('http')) {
+      try {
+        const url = new URL(tab.url);
+        const hostname = url.hostname;
+        const settings = await settingsManager.getSettings();
+        const rule = settings.perSite && settings.perSite[hostname];
+
+        const shouldAutoConvert =
+          (rule && rule.autoConvert) ||
+          (settings.autoConvertAll && (!rule || !rule.neverConvert));
+
+        if (shouldAutoConvert) {
+          await convertPageOnTab(tabId);
+        }
+      } catch {}
+    }
+  });
+}
+
+// Tab removal cleanup
+if (api && api.tabs && api.tabs.onRemoved) {
+  api.tabs.onRemoved.addListener((tabId) => {
+    tabStatusMap.delete(tabId);
+  });
+}
+
+// Startup & install hooks
+if (api && api.runtime && api.runtime.onInstalled) {
+  api.runtime.onInstalled.addListener(() => {
+    buildMenus();
+    syncAutoConvertRules();
+  });
+}
+
+if (api && api.runtime && api.runtime.onStartup) {
+  api.runtime.onStartup.addListener(() => {
+    buildMenus();
+    syncAutoConvertRules();
+  });
+}

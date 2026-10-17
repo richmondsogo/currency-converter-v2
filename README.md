@@ -1,328 +1,194 @@
-# Currency Converter
+# Currency Convertr
 
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-blue.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Chromium%20%7C%20Firefox-lightgrey.svg)](#cross-browser-compatibility)
 [![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)](#test-suite)
 
-A high-performance, cross-browser extension built on Manifest V3 that enables in-page price conversion directly through the browser context menu. Features dual-tier foreign exchange rate routing and zero DOM mutation.
+> **"Google Translate for prices"** — An intelligent, cross-browser extension that instantly converts every price on any webpage into your preferred currency in place, with a non-intrusive Translate-style floating bar and one-click restoration of original prices.
 
 ---
 
-## Table of Contents
+## Visual Tour
 
-- [Overview](#overview)
-- [System Architecture](#system-architecture)
-- [Key Features](#key-features)
-- [Supported Currencies](#supported-currencies)
-- [Visual Verification](#visual-verification)
-- [Cross-Browser Compatibility](#cross-browser-compatibility)
-- [Directory Structure](#directory-structure)
-- [Installation and Local Development](#installation-and-local-development)
-  - [Google Chrome, Microsoft Edge, and Brave](#google-chrome-microsoft-edge-and-brave)
-  - [Mozilla Firefox](#mozilla-firefox)
-- [Build Pipeline](#build-pipeline)
-- [Test Suite](#test-suite)
-- [Security and Privacy Architecture](#security-and-privacy-architecture)
-- [API Reference and Upstream Providers](#api-reference-and-upstream-providers)
-- [Store Assets and Distribution](#store-assets-and-distribution)
-- [Contributing](#contributing)
-- [License](#license)
+### 1. In-Page Price Conversion & Translate Bar
+Prices convert directly on the page. The floating bar lets you switch target currencies, view status, or revert to original prices instantly. Hovering over any converted price displays a detailed breakdown with the original amount, exchange rate used, and rate date.
 
----
+![In-Page Price Conversion](screenshots/screenshot-inpage-bar.png)
 
-## Overview
+### 2. Toolbar Action Popup
+Quickly toggle conversion on the active page, switch target currencies with the searchable combobox, and configure per-site auto-conversion rules.
 
-Currency Converter streamlines international pricing lookups on web pages. Instead of copying numbers into search engines, switching tabs, or relying on intrusive floating widgets, users highlight any monetary value on a page, right-click, and select their target currency.
+![Action Popup](screenshots/screenshot-popup.png)
 
-The extension processes selections purely in memory within the background service worker or script, fetches live exchange rates via an automated dual-API fallback architecture, and presents formatted results through native desktop notifications.
+### 3. Full Preferences & Options Dashboard
+Customize your default target currency, reorder pinned currencies for quick access, select your preferred display mode, enable cryptocurrency support, and manage automated site rules.
 
-### Design Principles
+![Options Page](screenshots/screenshot-options.png)
 
-1. **Zero DOM Mutation**: The extension does not inject content scripts, styles, or iframes into third-party web pages.
-2. **Ephemeral Memory Execution**: Highlighted strings exist only in volatile service worker memory during parsing and conversion.
-3. **Dual-API Reliability**: High-frequency Central Bank reference rates are paired with a CDN-cached fallback table covering 170+ global currencies.
-4. **Universal Manifest V3 Compatibility**: Single shared business logic layer compiled to target both Chromium service workers and Firefox event scripts.
-
----
-
-## System Architecture
-
-The following sequence outlines the conversion pipeline from user selection to notification delivery:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as User
-    participant Browser as Browser Tab
-    participant Worker as Background Worker (MV3)
-    participant ECB as Primary API (Frankfurter)
-    participant Fallback as Fallback API (jsDelivr CDN)
-    participant UI as Desktop Notification
-
-    User->>Browser: Highlights price string (e.g., "149,50 €")
-    User->>Browser: Right-clicks & selects "To USD"
-    Browser->>Worker: contextMenus.onClicked event dispatched
-    Worker->>Worker: extractAmount() & detectCurrency()
-    alt Both Currencies in ECB Coverage Set
-        Worker->>ECB: GET /v1/latest?amount=X&from=EUR&to=USD
-        alt Response OK (200)
-            ECB-->>Worker: Rate data JSON
-        else Network / HTTP Error
-            Worker->>Fallback: GET /currencies/eur.json
-            Fallback-->>Worker: Rates map JSON
-        end
-    else Regional / Non-ECB Currency (e.g., NGN, GHS)
-        Worker->>Fallback: GET /currencies/eur.json
-        Fallback-->>Worker: Rates map JSON
-    end
-    Worker->>Worker: Compute converted total & unit rate
-    Worker->>UI: notifications.create() with formatted result
-    UI-->>User: Displays converted price and conversion rate
-```
-
-### Architectural Highlights
-
-- **Parsing Pipeline**: Employs a two-pass tokenization algorithm that handles complex international digit grouping, inverted decimal separators (such as European dot-thousands and comma-decimals), multi-character symbols (`CAD$`, `AU$`, `zł`), and ISO 4217 currency tokens.
-- **Fault-Tolerant Routing**: Queries European Central Bank reference data via the Frankfurter API for optimal low-latency conversion across 30+ major liquid pairs. Automatically fails over to the open currency database via jsDelivr CDN for emerging market and regional currencies.
-
----
-
-## Key Features
-
-- **Context Menu Interaction**: Submenu integrated directly into the browser context menu under the `selection` context.
-- **Broad Currency Coverage**: Immediate support for 170+ national and regional currencies.
-- **International Number Parsing**:
-  - Handles standard dot-decimal notation: `$1,299.99` &rarr; `1299.99`
-  - Handles European comma-decimal notation: `149,50 €` &rarr; `149.50`
-  - Handles full European mixed formatting: `1.299,99 €` &rarr; `1299.99`
-  - Handles comma-separated thousands: `₦50,000` &rarr; `50000`
-- **Native Notification Presentation**: Clear desktop alerts formatted using `Intl.NumberFormat` localized for standard financial clarity.
-- **Zero Telemetry**: No logging, no remote tracking beacons, no analytics collectors, and no persistent disk storage.
-
----
-
-## Supported Currencies
-
-### Native Primary Target Submenus
-
-The context menu provides one-click target conversion to the following currencies:
-
-| Code | Currency Name | Typical Symbol | Routing Layer |
-|---|---|---|---|
-| **NGN** | Nigerian Naira | `₦` | Fawaz Fallback API |
-| **USD** | United States Dollar | `$` | Frankfurter (ECB) |
-| **EUR** | Euro | `€` | Frankfurter (ECB) |
-| **GBP** | British Pound Sterling | `£` | Frankfurter (ECB) |
-| **JPY** | Japanese Yen | `¥` | Frankfurter (ECB) |
-| **CAD** | Canadian Dollar | `CAD$` / `CA$` | Frankfurter (ECB) |
-| **AUD** | Australian Dollar | `AU$` / `A$` | Frankfurter (ECB) |
-| **INR** | Indian Rupee | `₹` | Frankfurter (ECB) |
-
-### Detected Source Currencies
-
-The automatic detection engine recognizes 170+ ISO 4217 currency codes and common currency symbols, including `CHF`, `ZAR`, `SGD`, `HKD`, `NZD`, `SEK`, `NOK`, `DKK`, `PLN` (`zł`), `CZK` (`Kč`), `TRY`, `BRL` (`R$`), `MXN`, `KRW` (`₩`), `GHS`, `KES`, and others.
-
----
-
-## Visual Verification
-
-### 1. In-Page Context Menu Trigger
-Users highlight an item price on any web store and access the target conversion submenu with a single right-click.
+### 4. Selection Conversion (Preserved from v1)
+Highlight any specific price string, right-click, and convert it instantly via a native desktop notification.
 
 ![Context Menu Selection](screenshots/real-work-test-context-menu.png)
 
-### 2. Live Conversion Alert
-The conversion result displays the total converted value alongside the calculated unit exchange rate in a system notification.
+---
 
-![Conversion Result](screenshots/real-work-test-conversion-alert.png)
+## Core Features
 
-### 3. European Number Format Normalization
-The parser accurately identifies comma-based decimal delimiters common in European e-commerce stores without calculation distortion.
-
-![European Format Conversion](screenshots/real-work-test-european-decimal.png)
+- **In-Place Page Conversion**: Converts every detected price on any page into your chosen currency without disrupting page layout.
+- **Three Display Modes**:
+  - `Replace` (Default): Cleanly replaces the price on page; hover tooltip displays original amount.
+  - `Append`: Displays original and converted prices side-by-side (e.g. `$20.00 (≈ ₦30,512)`).
+  - `Replace + Highlight`: Adds a subtle, elegant highlight to converted prices.
+- **100% Byte-for-Byte Reversible**: Preserves exact original text nodes and DOM structures in memory (`WeakMap<Element, DocumentFragment>`). Clicking "Show original" restores the page to its pristine state.
+- **Split-Price Assembly**: Intelligently handles modern e-commerce layouts (such as Amazon's split symbol, whole, and fraction tags, `<sup>` cents, and nested spans) as cohesive pricing units.
+- **Dynamic Content & SPAs**: Batched `MutationObserver` automatically converts new items loaded via infinite scroll or client-side navigation without main-thread blocking or infinite loops.
+- **Open Shadow DOM Support**: Traverses open shadow roots in modern web components to convert encapsulated pricing elements.
+- **Smart Currency Detection**:
+  1. Unambiguous tokens (`US$`, `CA$`, `AU$`, `NZ$`, `₦`, `€`, `zł`, `Kč`, `฿`, `₺`, etc.).
+  2. Structured page metadata (JSON-LD `priceCurrency`, `og:price:currency`, `product:price:currency`, and microdata `[itemprop="priceCurrency"]`).
+  3. Site context: Country-code TLD mapping (.ca &rarr; CAD, .co.uk &rarr; GBP, .ng &rarr; NGN, .jp &rarr; JPY, etc.) and `<html lang>` region codes.
+  4. Per-site user overrides.
+  5. Configurable default for ambiguous symbols (`$`, `¥`, `kr`).
+- **170+ Global Currencies**: Full support for 162 ISO 4217 currencies plus major cryptocurrencies with localized minor-unit precision and rounding options.
+- **3-Tier Rates Engine**:
+  - Primary: European Central Bank (ECB) via Frankfurter API.
+  - Secondary: Fawaz Ahmed Currency API via jsDelivr CDN.
+  - Tertiary: Fawaz Ahmed Currency API via Cloudflare Pages.
+  - Transparent cross-rates calculated through EUR with a 6-hour cache, stale-while-revalidate, in-flight deduplication, and offline fallback.
+- **Zero Runtime Dependencies**: Packaged with `esbuild` for clean, isolated bundles containing zero remote code and passing strict store linter checks.
 
 ---
 
-## Cross-Browser Compatibility
+## Architecture Overview
 
-| Browser | Engine | Manifest Support | Build Target | Verification Status |
-|---|---|---|---|---|
-| **Google Chrome** | Chromium | Manifest V3 (Service Worker) | `dist/chrome` | Verified |
-| **Microsoft Edge** | Chromium | Manifest V3 (Service Worker) | `dist/chrome` | Verified |
-| **Brave** | Chromium | Manifest V3 (Service Worker) | `dist/chrome` | Verified |
-| **Mozilla Firefox** | Gecko | Manifest V3 (Background Scripts) | `dist/firefox` | Verified |
-| **Opera** | Chromium | Manifest V3 (Service Worker) | `dist/chrome` | Verified |
-| **Vivaldi** | Chromium | Manifest V3 (Service Worker) | `dist/chrome` | Verified |
+```mermaid
+flowchart TD
+    subgraph UI ["User Interfaces"]
+        Popup["Toolbar Popup<br/>(popup.js)"]
+        Options["Options Dashboard<br/>(options.js)"]
+        InPageBar["Shadow DOM Translate Bar<br/>(content/ui.js)"]
+        ContextMenu["Context Menu<br/>(selection)"]
+    end
 
----
+    subgraph Background ["Background Service Worker (MV3)"]
+        Router["Message Router<br/>(background.js)"]
+        RatesEngine["Rates Engine<br/>(shared/rates.js)"]
+        Storage["chrome.storage.local<br/>(Cache & Settings)"]
+        Scripting["chrome.scripting<br/>(Dynamic Injection)"]
+    end
 
-## Directory Structure
+    subgraph ContentScript ["Content Script (Tab)"]
+        Scanner["Page Scanner<br/>(content/scanner.js)"]
+        DOM["Host Page DOM<br/>(Light + Shadow DOM)"]
+    end
 
+    subgraph RemoteAPIs ["Foreign Exchange Rates Providers"]
+        ECB["1. Frankfurter API<br/>(European Central Bank)"]
+        FawazCDN["2. Fawaz Currency API<br/>(jsDelivr CDN)"]
+        FawazPages["3. Fawaz Fallback Host<br/>(Cloudflare Pages)"]
+    end
+
+    Popup -->|MSG.CONVERT_PAGE / MSG.UPDATE_SETTINGS| Router
+    Options -->|MSG.UPDATE_SETTINGS| Router
+    ContextMenu -->|chrome.contextMenus.onClicked| Router
+    Router --> Scripting
+    Scripting -->|injects / registers| Scanner
+    Scanner <-->|walks & converts| DOM
+    Scanner --> InPageBar
+    Router <--> RatesEngine
+    RatesEngine <--> Storage
+    RatesEngine -->|1. Try ECB| ECB
+    RatesEngine -->|2. Try CDN| FawazCDN
+    RatesEngine -->|3. Try Pages| FawazPages
 ```
-currency-converter-v2/
-├── .agents/                    # Workspace agent configurations and skills
-├── dist/                       # Compiled distribution outputs
-│   ├── chrome/                 # Unpacked Chromium build (MV3)
-│   ├── firefox/                # Unpacked Firefox build (MV3)
-│   └── packages/               # Production upload ZIP archives
-│       ├── currency-converter-chrome-v1.1.0.zip
-│       └── currency-converter-firefox-v1.1.0.zip
-├── screenshots/                # Verification captures and Chrome Web Store tiles
-├── scripts/                    # Asset and graphic compilation utilities
-├── src/                        # Primary source files
-│   ├── background.js           # Universal cross-browser background worker
-│   └── icons/                  # High-DPI icons (16px, 48px, 96px, 128px)
-├── tests/                      # Automated unit test suite
-│   └── parse.test.js           # Unit tests for currency detection & amount parsing
-├── build.js                    # Cross-browser build and packaging script
-├── package.json                # Project manifest and task automation
-├── CHROMEWEBSTORE.md           # Chrome Web Store submission metadata and declarations
-├── PRIVACY_POLICY.md           # Public privacy policy
-├── DESIGN.md                   # Architectural and visual design constraints
-├── LICENSE                     # MIT License
-└── README.md                   # Project technical documentation
-```
 
 ---
 
-## Installation and Local Development
+## Permission Model & Least Privilege
+
+Currency Convertr requests only the permissions strictly required to execute its declared functionality:
+
+| Permission | Scope | Technical Justification |
+|---|---|---|
+| `contextMenus` | API | Enables the right-click "Convert currency" menu item and pinned currency submenus on selected text. |
+| `notifications` | API | Displays converted amounts and exchange rates for right-click text selections. |
+| `storage` | API | Persists user preferences and cached exchange rate tables locally (`chrome.storage.local`). |
+| `activeTab` | API | Grants temporary access to the active tab to execute in-page conversion when the user clicks the toolbar button or presses the keyboard shortcut. |
+| `scripting` | API | Injects the content script into the active tab on user demand and registers auto-conversion scripts for approved domains. |
+| `optional_host_permissions` (`<all_urls>`) | Runtime Host | Requested **only** when the user explicitly enables "Always convert on this site" or "Auto-convert on all sites". Never granted by default. |
+| `https://api.frankfurter.dev/*` | Static Host | Fetches official European Central Bank reference exchange rates. |
+| `https://cdn.jsdelivr.net/*` | Static Host | Fetches open exchange rate tables for 170+ global and regional currencies. |
+| `https://latest.currency-api.pages.dev/*` | Static Host | Serves as tertiary fallback provider if primary and CDN rate hosts are unavailable. |
+
+---
+
+## Installation & Local Development
 
 ### Prerequisites
+- Node.js v18.0.0 or higher
+- Google Chrome, Microsoft Edge, Brave, or Mozilla Firefox
 
-- [Node.js](https://nodejs.org/) v18.0.0 or higher.
-- A modern Chromium-based browser or Mozilla Firefox.
+### 1. Build the Extension
+```bash
+# Clone the repository
+git clone https://github.com/richmondsogo/currency-converter-v2.git
+cd currency-converter-v2
 
-### Google Chrome, Microsoft Edge, and Brave
+# Install dependencies
+npm install
 
-1. Clone or download this repository:
-   ```bash
-   git clone https://github.com/richmondsogo/currency-converter-v2.git
-   cd currency-converter-v2
-   ```
-2. Build the distribution assets:
-   ```bash
-   npm run build
-   ```
-3. Open the browser extensions manager:
-   - Chrome: Navigate to `chrome://extensions/`
-   - Edge: Navigate to `edge://extensions/`
-   - Brave: Navigate to `brave://extensions/`
-4. Toggle **Developer mode** in the upper-right corner.
-5. Click **Load unpacked**.
-6. Select the `dist/chrome` directory from this repository.
+# Compile Chrome and Firefox distribution bundles
+npm run build
+```
 
-### Mozilla Firefox
+### 2. Load into Chromium (Chrome, Edge, Brave)
+1. Open your browser and navigate to `chrome://extensions/` (or `edge://extensions/`).
+2. Toggle **Developer mode** on in the top-right corner.
+3. Click **Load unpacked**.
+4. Select the `dist/chrome` folder.
 
+### 3. Load into Mozilla Firefox
 1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`.
 2. Click **Load Temporary Add-on...**.
 3. Select `dist/firefox/manifest.json`.
 
 ---
 
-## Build Pipeline
+## Testing & Verification
 
-The project includes an automated build script (`build.js`) that synchronizes icons, compiles platform-specific manifests, and bundles store-ready ZIP archives.
-
-Run the build pipeline:
+The repository includes a comprehensive automated test suite with 40 unit and DOM integration tests:
 
 ```bash
-npm run build
-```
-
-### Build Outputs
-
-- `dist/chrome/`: Ready for direct Chromium unpacked loading.
-- `dist/firefox/`: Ready for Firefox temporary add-on loading.
-- `dist/packages/currency-converter-chrome-v1.1.0.zip`: Formatted archive with `manifest.json` at root level for the Chrome Web Store Developer Dashboard.
-- `dist/packages/currency-converter-firefox-v1.1.0.zip`: Formatted archive for Firefox Add-ons (AMO).
-
----
-
-## Test Suite
-
-The project includes a regression test suite covering the numeric parser, regional formatting, symbol collision, and ISO tokenization.
-
-Execute the test suite:
-
-```bash
+# Run all unit, DOM, and build tests
 npm test
+
+# Lint Firefox extension for Mozilla AMO compliance
+npm run lint:firefox
 ```
 
-### Coverage Assertions
-
-- ISO 4217 symbol precedence (e.g., verifying `CAD$` parses as `CAD` before matching `$`).
-- European inverted comma-decimal structures (`1.299,99 €` and `149,50 €`).
-- Anglo-American dot-decimal structures (`$1,299.99`).
-- Whitespace stripping and thousands separator normalization.
-- In-memory bounds validation for zero and non-numeric inputs.
-
 ---
 
-## Security and Privacy Architecture
+## Privacy Policy Summary
 
-### Minimal Permission Footprint
+- **Local-Only Processing**: All webpage text and DOM scanning occurs strictly on your device inside volatile memory. Nothing about your browsing history, page contents, or URLs is ever recorded, stored on a remote server, or shared.
+- **Zero Telemetry**: No analytics beacons, no crash tracking SDKs, no advertising libraries, and no user tracking.
+- **Anonymous Rate Requests**: Foreign exchange rate queries request public rate tables (base EUR) and never transmit user-specific data.
 
-Currency Converter adheres strictly to the Principle of Least Privilege:
-
-| Permission | Scope | Justification |
-|---|---|---|
-| `contextMenus` | API | Creates the right-click "Convert currency" menu item on selected text. |
-| `notifications` | API | Renders the converted price notification without modifying web page DOM trees. |
-| `https://api.frankfurter.dev/*` | Host | Queries European Central Bank daily reference exchange rates. |
-| `https://cdn.jsdelivr.net/*` | Host | Queries open currency exchange rate tables for regional currencies. |
-
-### Security Guarantees
-
-- **No Content Scripts**: The extension has no access to page DOMs, stored cookies, session storage, or user keystrokes.
-- **No Remote Code Execution**: All executable code is packaged locally within the extension bundle in strict compliance with Chrome Web Store and Mozilla Add-on policies.
-- **No Background Telemetry**: Zero analytics pings, diagnostic reporting, or tracking pixels.
-
----
-
-## API Reference and Upstream Providers
-
-1. **[Frankfurter API](https://api.frankfurter.dev)**
-   - **Provider**: Open source, tracking European Central Bank (ECB) data.
-   - **Authentication**: Keyless, open access.
-   - **Endpoint**: `https://api.frankfurter.dev/v1/latest?amount={amount}&from={from}&to={to}`
-   - **Update Frequency**: Published daily around 16:00 CET on working days.
-
-2. **[Fawaz Ahmed Currency API](https://github.com/fawazahmed0/exchange-api)**
-   - **Provider**: Open exchange rate database distributed via jsDelivr CDN.
-   - **Authentication**: Keyless, open access.
-   - **Endpoint**: `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/{code}.json`
-   - **Coverage**: 170+ world currencies including emerging markets.
-
----
-
-## Store Assets and Distribution
-
-Pre-rendered visual assets conforming to store guidelines are stored in `screenshots/`:
-
-- **Store Icon** (`dist/chrome/icons/icon128.png`): High-DPI 128x128 PNG icon.
-- **Promo Tile** (`screenshots/promo-small-440x280.png`): 440x280 PNG small promo banner.
-- **Screenshot 1** (`screenshots/real-work-test-context-menu.png`): 1280x800 PNG demonstrating context menu interaction.
-- **Screenshot 2** (`screenshots/real-work-test-conversion-alert.png`): 1280x800 PNG showing notification output.
-- **Screenshot 3** (`screenshots/real-work-test-european-decimal.png`): 1280x800 PNG displaying European number formatting support.
-
-For complete store submission copy and compliance declarations, see [CHROMEWEBSTORE.md](CHROMEWEBSTORE.md).
+For our full privacy disclosures, see [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
 
 ---
 
 ## Contributing
 
-Contributions, bug reports, and currency mapping suggestions are welcome:
-
-1. Fork the repository.
-2. Create a feature branch (`git checkout -b feature/currency-improvement`).
-3. Commit your changes (`git commit -m "feat: add support for currency XYZ"`).
-4. Run regression tests (`npm test`).
-5. Push to the branch (`git push origin feature/currency-improvement`).
-6. Open a Pull Request.
+Contributions, feedback, and currency metadata updates are welcome!
+1. Fork the repository and create your feature branch: `git checkout -b feat/my-improvement`.
+2. Commit your changes following Conventional Commits: `git commit -m "feat: add currency XYZ"`.
+3. Ensure all tests and linter checks pass: `npm test && npm run lint:firefox`.
+4. Open a Pull Request.
 
 ---
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for full details.
+This project is licensed under the [MIT License](LICENSE).

@@ -1,11 +1,13 @@
 {
   "name": "currency-converter-v2",
-  "version": "1.1.0",
-  "description": "Cross-browser extension (Manifest V3) for instant in-page currency conversion via right-click context menu.",
+  "version": "2.0.0",
+  "description": "In-page price converter that transforms prices into your preferred currency with live exchange rates.",
+  "type": "module",
   "main": "src/background.js",
   "scripts": {
     "build": "node build.js",
-    "test": "node tests/parse.test.js"
+    "test": "node --test tests/**/*.test.js && node tests/parse.test.js",
+    "lint:firefox": "web-ext lint --source-dir dist/firefox"
   },
   "keywords": [
     "chrome-extension",
@@ -13,7 +15,8 @@
     "currency-converter",
     "manifest-v3",
     "exchange-rates",
-    "web-extension"
+    "web-extension",
+    "in-page-translation"
   ],
   "author": "Richmond Sogo <richmondsogo@gmail.com>",
   "license": "MIT",
@@ -24,5 +27,10 @@
   "bugs": {
     "url": "https://github.com/richmondsogo/currency-converter-v2/issues"
   },
-  "homepage": "https://github.com/richmondsogo/currency-converter-v2#readme"
+  "homepage": "https://github.com/richmondsogo/currency-converter-v2#readme",
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "jsdom": "^29.1.1",
+    "web-ext": "^10.8.0"
+  }
 }

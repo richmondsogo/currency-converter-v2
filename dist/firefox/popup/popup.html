@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Currency Convertr</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-wrapper">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="brand">
+        <div class="brand-badge">fx</div>
+        <span class="brand-name">Currency Convertr</span>
+      </div>
+      <button id="btn-open-options" class="icon-btn" title="Settings" aria-label="Open settings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </header>
+
+    <!-- Unsupported Page Notice (Hidden by default) -->
+    <div id="unsupported-notice" class="notice-box" style="display: none;">
+      <span class="notice-icon">ℹ</span>
+      <span class="notice-text">Price conversion is unavailable on browser system or restricted extension pages.</span>
+    </div>
+
+    <!-- Main Controls -->
+    <main id="main-controls" class="popup-body">
+      <!-- Currency Selector Row -->
+      <div class="currency-row">
+        <div class="currency-from">
+          <label for="select-from" class="field-label">From</label>
+          <div class="pill-display" id="from-display">Auto-detect</div>
+        </div>
+        <div class="currency-arrow">→</div>
+        <div class="currency-to">
+          <label for="picker-to-btn" class="field-label">To</label>
+          <div class="combobox-wrapper">
+            <button id="picker-to-btn" class="picker-btn" aria-haspopup="listbox" aria-expanded="false">
+              <span id="selected-target-text">USD ($)</span>
+              <span class="dropdown-chevron">▾</span>
+            </button>
+            <!-- Dropdown Menu -->
+            <div id="currency-dropdown" class="currency-dropdown" style="display: none;">
+              <input type="text" id="currency-search-input" class="search-input" placeholder="Search code or name..." aria-label="Search currency" />
+              <div id="currency-options-list" class="currency-options-list" role="listbox">
+                <!-- Grouped options injected dynamically -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Primary Action Button -->
+      <button id="btn-convert-toggle" class="btn-primary" type="button">
+        Convert this page
+      </button>
+
+      <!-- Live Status Message -->
+      <div id="live-status" class="status-bar">
+        Ready to convert
+      </div>
+
+      <!-- Site Configuration Options -->
+      <div class="site-section">
+        <div class="site-header">
+          <span class="site-domain-label" id="current-domain-label">Current site</span>
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle-label" for="toggle-always-site">Always convert on this site</label>
+          <input type="checkbox" id="toggle-always-site" class="toggle-input" />
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle-label" for="toggle-never-site">Never convert on this site</label>
+          <input type="checkbox" id="toggle-never-site" class="toggle-input" />
+        </div>
+
+        <div class="override-row">
+          <label for="site-currency-override" class="override-label">Prices on this site are in:</label>
+          <select id="site-currency-override" class="select-override">
+            <option value="">Auto-detect</option>
+            <!-- Options injected dynamically -->
+          </select>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="popup-footer">
+      <div class="rates-meta" id="rates-meta">
+        <span id="rates-freshness-text">Rates: Loading...</span>
+        <button id="btn-retry-rates" class="retry-btn" style="display: none;" title="Retry rate fetch">Retry</button>
+      </div>
+      <a href="#" id="link-options" class="footer-link">Options</a>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

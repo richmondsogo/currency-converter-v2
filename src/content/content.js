@@ -1,0 +1,209 @@
+// src/content/content.js
+import { PageScanner } from './scanner.js';
+import { InPageUI } from './ui.js';
+import { MSG } from '../shared/messaging.js';
+import { sendMessage, getBrowser } from '../shared/browser.js';
+
+// Inlined ui.css for complete self-contained Shadow DOM isolation
+import uiCssText from './ui.css';
+
+let currentScanner = null;
+let currentUI = null;
+let isConverted = false;
+let globalRates = null;
+let rateDate = null;
+let rateProvider = null;
+let currentSettings = null;
+
+const api = getBrowser();
+
+function notifyBackgroundOfStatus() {
+  try {
+    sendMessage({
+      type: MSG.PAGE_STATUS,
+      payload: {
+        isConverted,
+        count: currentScanner ? currentScanner.convertedCount : 0,
+        targetCurrency: currentScanner ? currentScanner.targetCurrency : null
+      }
+    }).catch(() => {});
+  } catch {}
+}
+
+async function performConversion(options = {}) {
+  const targetCurrency = options.targetCurrency || currentSettings?.targetCurrency || 'USD';
+  const displayMode = options.displayMode || currentSettings?.displayMode || 'replace';
+  const roundWhole = options.roundWhole !== undefined ? options.roundWhole : (currentSettings?.roundWhole || false);
+  const showInPageBar = options.showInPageBar !== undefined ? options.showInPageBar : (currentSettings?.showInPageBar !== false);
+
+  // Fetch rates if not cached in memory
+  if (!globalRates || options.forceRefreshRates) {
+    try {
+      const response = await sendMessage({ type: MSG.GET_RATES });
+      if (response && response.rates) {
+        globalRates = response.rates;
+        rateDate = response.date;
+        rateProvider = response.provider;
+      }
+    } catch (err) {
+      console.warn('[CurrencyConverter] Could not fetch rates from background:', err.message);
+      return { success: false, error: err.message };
+    }
+  }
+
+  if (!globalRates) {
+    return { success: false, error: 'Rates unavailable' };
+  }
+
+  // If already converted, revert first to maintain clean DOM
+  if (currentScanner && isConverted) {
+    currentScanner.revert();
+  }
+
+  currentScanner = new PageScanner({
+    doc: document,
+    targetCurrency,
+    ratesTable: globalRates,
+    displayMode,
+    roundWhole,
+    rateDate,
+    provider: rateProvider,
+    onConvertedCountChange: (count) => {
+      notifyBackgroundOfStatus();
+    }
+  });
+
+  const convertedCount = currentScanner.convert();
+  currentScanner.startObserving();
+  isConverted = true;
+
+  // Mount UI bar if enabled
+  if (showInPageBar) {
+    if (!currentUI) {
+      currentUI = new InPageUI({
+        doc: document,
+        targetCurrency,
+        rateDate,
+        provider: rateProvider,
+        onShowOriginal: () => {
+          performRevert();
+        },
+        onChangeCurrency: (newCur) => {
+          performConversion({ targetCurrency: newCur });
+        }
+      });
+      currentUI.mount(uiCssText);
+    } else {
+      currentUI.targetCurrency = targetCurrency;
+    }
+  }
+
+  notifyBackgroundOfStatus();
+  return { success: true, count: convertedCount, targetCurrency };
+}
+
+function performRevert() {
+  if (currentScanner) {
+    currentScanner.revert();
+    currentScanner.stopObserving();
+  }
+  isConverted = false;
+  notifyBackgroundOfStatus();
+  return { success: true, count: 0 };
+}
+
+// Tooltip event delegation
+document.addEventListener('mouseover', (e) => {
+  if (!isConverted || !currentScanner || !currentUI) return;
+  const target = e.target;
+  if (!target || target.nodeType !== 1) return;
+
+  const convertedEl = target.closest('[data-cc-converted]');
+  if (!convertedEl) return;
+
+  const meta = currentScanner.conversionMetadata.get(convertedEl);
+  if (meta) {
+    currentUI.showTooltip({
+      originalAmount: meta.originalAmount,
+      originalCurrency: meta.originalCurrency,
+      convertedAmount: meta.convertedAmount,
+      rate: meta.rate,
+      date: meta.date,
+      x: e.clientX,
+      y: e.clientY
+    });
+  }
+}, { passive: true });
+
+document.addEventListener('mouseout', (e) => {
+  if (!isConverted || !currentUI) return;
+  const target = e.target;
+  if (!target || target.nodeType !== 1) return;
+
+  if (target.closest('[data-cc-converted]')) {
+    currentUI.hideTooltip();
+  }
+}, { passive: true });
+
+// Message receiver from popup and background
+if (api && api.runtime && api.runtime.onMessage) {
+  api.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (!message || !message.type) return;
+
+    if (message.type === MSG.CONVERT_PAGE) {
+      performConversion(message.payload || {})
+        .then(result => sendResponse(result))
+        .catch(err => sendResponse({ success: false, error: err.message }));
+      return true; // Keep channel open for async response
+    }
+
+    if (message.type === MSG.REVERT_PAGE) {
+      const res = performRevert();
+      sendResponse(res);
+      return false;
+    }
+
+    if (message.type === MSG.GET_PAGE_STATUS) {
+      sendResponse({
+        isConverted,
+        count: currentScanner ? currentScanner.convertedCount : 0,
+        targetCurrency: currentScanner ? currentScanner.targetCurrency : null,
+        rateDate,
+        rateProvider
+      });
+      return false;
+    }
+  });
+}
+
+// Initialize on page load (check for auto-convert)
+async function initializeContentScript() {
+  try {
+    const settings = await sendMessage({ type: MSG.GET_SETTINGS });
+    if (settings) {
+      currentSettings = settings;
+      const hostname = window.location.hostname;
+      const siteRule = settings.perSite && settings.perSite[hostname];
+
+      // Auto-convert conditions:
+      // 1. Site explicitly marked autoConvert: true
+      // 2. autoConvertAll is true and site is NOT marked neverConvert: true
+      const shouldAutoConvert =
+        (siteRule && siteRule.autoConvert) ||
+        (settings.autoConvertAll && (!siteRule || !siteRule.neverConvert));
+
+      if (shouldAutoConvert) {
+        performConversion();
+      }
+    }
+  } catch (err) {
+    // Content script injected standalone or offline
+  }
+}
+
+// Wait for document ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeContentScript);
+} else {
+  initializeContentScript();
+}

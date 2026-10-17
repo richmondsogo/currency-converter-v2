@@ -1,17 +1,22 @@
 {
   "manifest_version": 3,
-  "name": "Currency Converter",
-  "version": "1.1.0",
-  "description": "Highlight a price on any webpage, right-click, and convert it instantly with live exchange rates.",
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "currency-converter-fx@richmond.addons",
-      "strict_min_version": "109.0"
-    }
-  },
+  "name": "Currency Convertr",
+  "version": "2.0.0",
+  "description": "In-page price converter that transforms prices into your preferred currency with live exchange rates.",
   "permissions": [
     "contextMenus",
-    "notifications"
+    "notifications",
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "optional_host_permissions": [
+    "<all_urls>"
+  ],
+  "host_permissions": [
+    "https://api.frankfurter.dev/*",
+    "https://cdn.jsdelivr.net/*",
+    "https://latest.currency-api.pages.dev/*"
   ],
   "icons": {
     "16": "icons/icon16.png",
@@ -19,10 +24,41 @@
     "96": "icons/icon96.png",
     "128": "icons/icon128.png"
   },
-  "host_permissions": [
-    "https://api.frankfurter.dev/*",
-    "https://cdn.jsdelivr.net/*"
-  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "commands": {
+    "toggle-page-conversion": {
+      "suggested_key": {
+        "default": "Alt+Shift+C",
+        "mac": "Alt+Shift+C"
+      },
+      "description": "Toggle in-page price conversion"
+    }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "currency-converter-fx@richmond.addons",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
+    }
+  },
   "background": {
     "scripts": [
       "background.js"

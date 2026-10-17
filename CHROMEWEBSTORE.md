@@ -1,149 +1,184 @@
-# Chrome Web Store Developer Submission Specification
+# Chrome Web Store & Firefox AMO Submission Specification
 
-> **Target Version**: 1.1.0  
-> **Last Verified**: 2026-10-10  
-> **Package File**: `dist/packages/currency-converter-chrome-v1.1.0.zip`
+> **Target Version**: 2.0.0  
+> **Package Files**:  
+> - Chrome: `dist/packages/currency-converter-chrome-v2.0.0.zip`  
+> - Firefox: `dist/packages/currency-converter-firefox-v2.0.0.zip`  
+> **Last Verified**: 2026-10-17  
 
 ---
 
-## 1. Product Details
+## Part 1: Chrome Web Store Submission Metadata
 
-### Extension Name
+### 1. Product Details
+
+#### Extension Name
 ```text
-Currency Converter
+Currency Convertr
 ```
 
-### Summary / Short Description
-*(132 characters max — Current: 111 characters)*
+#### Summary / Short Description
+*(132 characters max — Current: 122 characters)*
 ```text
-Highlight any price on a webpage, right-click, and convert it instantly into your target currency with live rates.
+Convert every price on any webpage in place into your preferred currency with live exchange rates. Google Translate for prices.
 ```
 
-### Detailed Description
+#### Detailed Description
 ```text
-Convert prices instantly without ever leaving your web browser tab.
+"Google Translate for prices" — Convert every price on any webpage into your chosen currency, in place, with live exchange rates and one-click restoration of original prices.
 
-Currency Converter streamlines international online shopping, travel reservations, and financial comparisons. Simply highlight any price, right-click to open the context menu, and view the live converted value right away. You no longer need to copy numbers into separate search engine tabs or open calculator applications.
+Currency Convertr transforms international online shopping, travel bookings, and global price comparisons. With a single click or keyboard shortcut, every price on the page is seamlessly replaced with your target currency. A clean, non-intrusive Translate-style bar floats at the top, allowing you to switch currencies or restore original prices anytime.
 
-CORE CAPABILITIES
+KEY CAPABILITIES
 
-• Context Menu Conversion: Instant conversion directly from the browser right-click menu.
-• 170+ Supported Currencies: Full support for major global currencies (USD, EUR, GBP, JPY, CAD, AUD, INR) alongside emerging market currencies (NGN, GHS, KES, and more).
-• Intelligent Price Recognition: Automatically identifies currency symbols ($, €, £, ₦, ¥, ₹, ₩, CAD$, AU$) and three-letter ISO 4217 currency codes.
-• Global Number Formatting: Accurately parses both standard dot-decimal values ($1,299.99) and European comma-decimal values (1.299,99 or 149,50 €).
-• Native System Notifications: Delivers clean, non-intrusive desktop alerts with formatted totals and implied unit exchange rates.
-• Dual-Tier Rate Reliability: Queries European Central Bank reference exchange rates with seamless CDN fallback for broad global coverage.
+• In-Page Price Conversion: Converts prices directly within the webpage layout without breaking design or causing visual jumping.
+• Reversible at Any Time: Click "Show original" to restore the webpage to its exact original state.
+• Modern Translate-Style Bar: A non-intrusive floating bar lets you change target currencies or dismiss the widget for that browsing session.
+• Price Hover Tooltips: Hover over any converted price to inspect the original amount, source currency, and the exact exchange rate used.
+• Three Display Modes: Choose between "Replace" (clean in-place conversion), "Append" ($20.00 ≈ ₦30,512), or "Replace + Highlight".
+• Split-Price Recognition: Accurately identifies complex e-commerce layouts (such as Amazon-style split whole and fraction spans, superscript cents, and multi-element prices).
+• 170+ Supported Currencies: Converts major world currencies (USD, EUR, GBP, JPY, CAD, AUD, INR) alongside regional emerging currencies (NGN, GHS, KES, ZAR, BRL, and more) and popular cryptocurrencies.
+• Context Menu & Selection: Highlight any specific price, right-click, and convert it instantly via a desktop alert.
+• Dynamic Content & SPAs: Seamlessly converts new items loaded via infinite scrolling or client-side navigation.
+• Automated Site Rules: Configure specific websites to auto-convert prices upon page load.
 
-USAGE INSTRUCTIONS
+PRIVACY & SECURITY GUARANTEES
 
-1. Highlight any price or numeric amount on any web page.
-2. Right-click the selected text.
-3. Hover over "Convert currency" and select your target currency (e.g., To NGN, To USD, To EUR, To GBP).
-4. A native desktop notification appears displaying the converted amount and exchange rate.
+Currency Convertr operates under a strict Zero-Telemetry policy:
+• All DOM reading and price conversion happens strictly locally on your device.
+• No browsing history, URLs, or page contents are ever transmitted to any external server.
+• Anonymous public exchange rate tables are fetched from the European Central Bank and distributed CDN mirrors with zero tracking.
+• Settings are stored locally in your browser profile.
 
-PRIVACY AND SECURITY GUARANTEE
-
-Currency Converter operates under a strict Zero-Telemetry policy:
-• No user data, browsing history, or website content is ever recorded or transmitted off-device.
-• Highlighted text selections are processed in volatile browser memory only at the time of conversion.
-• No content scripts are injected into web pages.
-
-SUPPORT AND ISSUES
+SUPPORT & ISSUES
 
 Report bugs or submit currency requests on GitHub:
 https://github.com/richmondsogo/currency-converter-v2/issues
 ```
 
-### Category
+#### Category
 ```text
 Shopping
 ```
 
-### Language
+#### Language
 ```text
 English
 ```
 
 ---
 
-## 2. Graphic Assets Matrix
+### 2. Graphic Assets Matrix
 
-| Asset Type | Required Dimensions | File Location | Validation Status |
+| Asset Type | Dimensions | File Location | Validation Status |
 |---|---|---|---|
-| **Extension Icon** | 128 &times; 128 px (PNG) | `dist/chrome/icons/icon128.png` | Valid (PNG 128&times;128) |
-| **Screenshot 1** | 1280 &times; 800 px (PNG) | `screenshots/real-work-test-context-menu.png` | Valid (PNG 1280&times;800) |
-| **Screenshot 2** | 1280 &times; 800 px (PNG) | `screenshots/real-work-test-conversion-alert.png` | Valid (PNG 1280&times;800) |
-| **Screenshot 3** | 1280 &times; 800 px (PNG) | `screenshots/real-work-test-european-decimal.png` | Valid (PNG 1280&times;800) |
-| **Small Promo Tile** | 440 &times; 280 px (PNG) | `screenshots/promo-small-440x280.png` | Valid (PNG 440&times;280) |
-
-### Asset Descriptions for Dashboard Upload
-
-- **Screenshot 1**: In-page right-click context menu demonstrating conversion of a selected e-commerce item price.
-- **Screenshot 2**: System notification output displaying the calculated target total and implied exchange rate.
-- **Screenshot 3**: Parsing verification of European comma-decimal formatting (`149,50 €` converted to USD).
-- **Small Promo Banner**: Official branding tile adhering to Chrome Web Store visual guidelines.
+| **Store Icon** | 128 &times; 128 px | `dist/chrome/icons/icon128.png` | Valid |
+| **Screenshot 1** | 1280 &times; 800 px | `screenshots/screenshot-inpage-bar.png` | In-page converted price + Translate floating bar + hover tooltip |
+| **Screenshot 2** | 1280 &times; 800 px | `screenshots/screenshot-popup.png` | Toolbar action popup with searchable combobox & site rules |
+| **Screenshot 3** | 1280 &times; 800 px | `screenshots/screenshot-options.png` | Options dashboard with pinned currencies & site rules |
+| **Screenshot 4** | 1280 &times; 800 px | `screenshots/real-work-test-context-menu.png` | Context-menu selection conversion |
+| **Promo Banner** | 440 &times; 280 px | `screenshots/promo-small-440x280.png` | Chrome Web Store promotional tile |
 
 ---
 
-## 3. Permissions Justifications
+### 3. Permissions Justifications (for Chrome Web Store Reviewers)
 
-The extension requests only the minimum set of permissions necessary to deliver its core functionality:
-
-| Permission | Type | Technical Justification for Reviewer |
+| Permission | Scope | Justification |
 |---|---|---|
-| `contextMenus` | API Permission | Required to register the "Convert currency" menu item and currency target submenu items when users highlight text on web pages. |
-| `notifications` | API Permission | Required to display the conversion result to the user via native system notifications without injecting scripts or elements into the host webpage. |
-| `https://api.frankfurter.dev/*` | Host Permission | Required to fetch real-time European Central Bank foreign exchange rates for major currencies. |
-| `https://cdn.jsdelivr.net/*` | Host Permission | Required to access the open exchange rate fallback database for 170+ regional currencies (e.g., NGN, GHS, KES) not tracked by central banks. |
+| `activeTab` | API | Enables the user to initiate in-page price conversion on the active tab via the toolbar button or keyboard shortcut without requiring permanent broad host permissions. |
+| `scripting` | API | Injects the price-scanning content script into the active tab upon user activation, and dynamically registers content scripts for sites the user configured for auto-conversion. |
+| `storage` | API | Persists user preferences (target currency, display mode, pinned currencies, per-site rules) and caches exchange rates locally (`chrome.storage.local`). |
+| `contextMenus` | API | Registers the "Convert currency" context-menu items when text is selected on a page. |
+| `notifications` | API | Displays desktop notifications when converting selected text via the right-click menu. |
+| `optional_host_permissions` (`["<all_urls>"]`) | Host | Requested only after an explicit user interaction when the user chooses to enable "Always convert on this site" or "Auto-convert on all sites". Never granted by default. |
+| `https://api.frankfurter.dev/*` | Host | Queries European Central Bank reference exchange rates for major fiat currencies. |
+| `https://cdn.jsdelivr.net/*` | Host | Queries open exchange rate tables for 170+ regional currencies via CDN. |
+| `https://latest.currency-api.pages.dev/*` | Host | Serves as tertiary fallback provider if primary and CDN rate hosts are unreachable. |
 
 ---
 
-## 4. Privacy Practices & Data Declarations
+### 4. Single-Purpose Declaration
 
-### Single Purpose Declaration
 ```text
-Convert highlighted monetary values on web pages into selected target currencies via the browser context menu.
+Convert prices on webpages into the user's selected target currency using live foreign exchange rates.
 ```
 
-### Data Collection Answers
+### 5. Data Usage & Privacy Declarations
 
-| Data Type | Collected? | Off-Device Transmission? | Explanation |
-|---|---|---|---|
-| Personally identifiable information | **No** | No | None |
-| Financial and payment information | **No** | No | No credit card or account data accessed |
-| Health information | **No** | No | None |
-| Authentication information | **No** | No | No accounts or credentials required |
-| Personal communications | **No** | No | None |
-| Location data | **No** | No | None |
-| Web browsing history | **No** | No | No URLs, history, or browsing activity tracked |
-| User activity | **No** | No | No clicks or user activity tracked |
-| Website content | **No** | No | Highlighted text is processed in volatile memory only during conversion |
-
-### Chrome Web Store Certifications
-
-- [x] **No sale of user data**: Data is not sold, rented, or transferred to data brokers.
-- [x] **No unrelated usage**: The extension does not use data for purposes outside its declared single purpose.
-- [x] **No lending or credit determination**: The extension does not assess creditworthiness.
+- **Personally identifiable information**: Not collected.
+- **Health information**: Not collected.
+- **Financial information**: Not collected (no banking, card, or wallet details accessed).
+- **Authentication information**: Not collected.
+- **Personal communications**: Not collected.
+- **Location**: Not collected.
+- **Web browsing history**: Not collected (URLs and history are never recorded or stored).
+- **Website content**: Processed locally in volatile memory strictly to extract numbers and currency symbols; never transmitted off-device.
 
 ---
 
-## 5. Privacy Policy Link & Contact
-
-- **Public Privacy Policy URL**:  
-  `https://github.com/richmondsogo/currency-converter-v2/blob/main/PRIVACY_POLICY.md`
-- **Developer Name**: Richmond Sogo
-- **Contact Email**: `richmondsogo@gmail.com`
-- **Support / Issue Tracker**:  
-  `https://github.com/richmondsogo/currency-converter-v2/issues`
-
----
-
-## 6. Technical Reviewer Notes (for CWS Review Team)
+### 6. Technical Reviewer Guidance (Chrome Web Store)
 
 ```text
 Reviewer Guidance:
-1. Pure Manifest V3 Implementation: The extension utilizes a lightweight background service worker (background.js) with no content scripts, DOM injection, or external script execution.
-2. User-Initiated Execution: Network requests are triggered strictly when the user selects a currency item from the context menu. No background polling or periodic syncing occurs.
-3. Clean Zip Archive: The submitted archive (dist/packages/currency-converter-chrome-v1.1.0.zip) includes manifest.json directly at the root directory level.
-4. Ephemeral Processing: Text selections are parsed strictly in memory; no user data or URLs are logged or stored.
+1. Pure Manifest V3 Architecture: The background service worker (background.js) orchestrates rate caching and messaging.
+2. User-Initiated Execution: In-page price conversion runs on-demand via activeTab and scripting.executeScript. Optional host permissions (<all_urls>) are only requested upon explicit user toggle ("Always convert on this site").
+3. Local Processing: No page text, URLs, or browsing data are transmitted anywhere. The only network calls are anonymous GET requests for public currency rate tables (base EUR).
+4. No Remote Code: All JavaScript modules are bundled locally using esbuild with zero eval, zero inline scripts, and zero remote code dependencies.
+```
+
+---
+
+## Part 2: Firefox Add-ons (AMO) Submission Metadata
+
+### 1. Add-on Details
+
+#### Add-on Name
+```text
+Currency Convertr
+```
+
+#### Add-on ID
+```text
+currency-converter-fx@richmond.addons
+```
+
+#### Summary
+```text
+Translate prices on any website into your preferred currency in place with live rates, floating bar, and one-click restore.
+```
+
+#### Full Description
+```text
+"Google Translate for prices" — Convert every price on any webpage into your preferred currency, in place, with live exchange rates and one-click restoration of original prices.
+
+Currency Convertr transforms international online shopping, travel bookings, and global price comparisons. With a single click or keyboard shortcut, every price on the page is seamlessly replaced with your target currency. A clean, non-intrusive Translate-style bar floats at the top, allowing you to switch currencies or restore original prices anytime.
+
+KEY FEATURES:
+• In-Page Price Conversion: Converts prices directly within the webpage layout without breaking design or causing visual jumping.
+• Reversible at Any Time: Click "Show original" to restore the webpage to its exact original state.
+• Floating Translate Bar: A non-intrusive floating bar lets you change target currencies or dismiss the widget for that browsing session.
+• Price Hover Tooltips: Hover over any converted price to inspect the original amount, source currency, and the exact exchange rate used.
+• Three Display Modes: Choose between "Replace" (clean in-place conversion), "Append" ($20.00 ≈ ₦30,512), or "Replace + Highlight".
+• Split-Price Recognition: Accurately identifies complex e-commerce layouts (such as Amazon-style split whole and fraction spans, superscript cents, and multi-element prices).
+• 170+ Supported Currencies: Converts major world currencies (USD, EUR, GBP, JPY, CAD, AUD, INR) alongside regional emerging currencies (NGN, GHS, KES, ZAR, BRL, and more) and popular cryptocurrencies.
+• Context Menu & Selection: Highlight any specific price, right-click, and convert it instantly via a desktop alert.
+• Dynamic Content & SPAs: Seamlessly converts new items loaded via infinite scrolling or client-side navigation.
+• Automated Site Rules: Configure specific websites to auto-convert prices upon page load.
+
+PRIVACY & SECURITY:
+• All DOM reading and price conversion happens strictly locally on your device.
+• No browsing history, URLs, or page contents are ever transmitted to any external server.
+• Anonymous public exchange rate tables are fetched from the European Central Bank and distributed CDN mirrors with zero tracking.
+• Settings are stored locally in your browser profile.
+```
+
+#### Notes to Reviewer (Firefox AMO)
+```text
+Dear AMO Review Team,
+
+Currency Convertr v2.0.0 is a Manifest V3 add-on providing in-page currency conversion:
+1. Local DOM Processing: All text scanning and currency replacement occur entirely client-side in the active tab. No webpage content, URLs, or browsing data are ever sent off the device.
+2. Optional Host Permissions: The add-on specifies optional_host_permissions: ["<all_urls>"]. This permission is NOT active upon installation. It is only requested via browser.permissions.request() if the user explicitly turns on "Always convert on this site" or "Auto-convert on all sites" in the popup or options page.
+3. Clean Manifest V3 Build: Bundled via esbuild with zero remote scripts and zero innerHTML usages (verified with web-ext lint: 0 errors, 0 notices, 0 warnings).
+4. Dual Rate Architecture: Exchange rates are fetched anonymously by the background script (base EUR) from the European Central Bank (Frankfurter) and Fawaz Ahmed currency API via jsDelivr CDN / Cloudflare Pages.
 ```
