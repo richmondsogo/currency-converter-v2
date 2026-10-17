@@ -24,5 +24,10 @@
   "bugs": {
     "url": "https://github.com/richmondsogo/currency-converter-v2/issues"
   },
-  "homepage": "https://github.com/richmondsogo/currency-converter-v2#readme"
+  "homepage": "https://github.com/richmondsogo/currency-converter-v2#readme",
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "jsdom": "^29.1.1",
+    "web-ext": "^10.8.0"
+  }
 }
