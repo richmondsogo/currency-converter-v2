@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Currency Convertr — Options & Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <!-- Header -->
+    <header class="options-header">
+      <div class="header-brand">
+        <div class="brand-badge">fx</div>
+        <div>
+          <h1 class="header-title">Currency Convertr</h1>
+          <p class="header-subtitle">Preferences and Configuration</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-reset" class="btn-secondary" type="button">Reset to Defaults</button>
+      </div>
+    </header>
+
+    <main class="options-content">
+      <!-- General Preferences -->
+      <section class="settings-card">
+        <h2 class="card-title">General Preferences</h2>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="default-target-currency" class="form-label">Default Target Currency</label>
+            <p class="form-desc">Default currency to convert prices into across pages.</p>
+            <select id="default-target-currency" class="form-select">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="display-mode" class="form-label">Display Mode</label>
+            <p class="form-desc">How converted prices appear on the page.</p>
+            <select id="display-mode" class="form-select">
+              <option value="replace">Replace original price (tooltip on hover)</option>
+              <option value="append">Append converted price (e.g. $20.00 ≈ ₦30,512)</option>
+              <option value="replace_highlight">Replace and highlight converted prices</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="ambiguous-dollar" class="form-label">Ambiguous "$" Symbol Default</label>
+            <p class="form-desc">Default currency when a bare "$" sign has no site or page context.</p>
+            <select id="ambiguous-dollar" class="form-select">
+              <option value="USD">USD — US Dollar</option>
+              <option value="CAD">CAD — Canadian Dollar</option>
+              <option value="AUD">AUD — Australian Dollar</option>
+              <option value="NZD">NZD — New Zealand Dollar</option>
+              <option value="SGD">SGD — Singapore Dollar</option>
+              <option value="HKD">HKD — Hong Kong Dollar</option>
+              <option value="MXN">MXN — Mexican Peso</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="theme-select" class="form-label">Appearance Theme</label>
+            <p class="form-desc">Theme for popup and options interface.</p>
+            <select id="theme-select" class="form-select">
+              <option value="system">System (follows OS)</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="checkbox-list">
+          <label class="checkbox-row">
+            <input type="checkbox" id="check-round-whole" class="form-checkbox" />
+            <div>
+              <span class="checkbox-title">Round to whole numbers</span>
+              <span class="checkbox-sub">Omit minor decimal places on converted amounts.</span>
+            </div>
+          </label>
+
+          <label class="checkbox-row">
+            <input type="checkbox" id="check-show-inpage-bar" class="form-checkbox" />
+            <div>
+              <span class="checkbox-title">Show in-page floating bar</span>
+              <span class="checkbox-sub">Display top Translate-style status bar when prices are converted.</span>
+            </div>
+          </label>
+
+          <label class="checkbox-row">
+            <input type="checkbox" id="check-show-crypto" class="form-checkbox" />
+            <div>
+              <span class="checkbox-title">Show cryptocurrencies in picker</span>
+              <span class="checkbox-sub">Include popular crypto assets (BTC, ETH, SOL, etc.) in currency selectors.</span>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <!-- Pinned Currencies (Context Menu & Quick Picker) -->
+      <section class="settings-card">
+        <h2 class="card-title">Pinned Currencies (Up to 8)</h2>
+        <p class="card-desc">Pinned currencies appear in the right-click context menu and top of the currency picker.</p>
+        <div id="pinned-chips-container" class="chips-container">
+          <!-- Dynamically populated chips -->
+        </div>
+        <div class="add-pinned-row">
+          <select id="select-add-pinned" class="form-select">
+            <option value="">+ Add currency to pinned...</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- Automation & Per-Site Rules -->
+      <section class="settings-card">
+        <h2 class="card-title">Automation & Site Permissions</h2>
+        <label class="checkbox-row" style="margin-bottom: 16px;">
+          <input type="checkbox" id="check-autoconvert-all" class="form-checkbox" />
+          <div>
+            <span class="checkbox-title">Auto-convert on all websites</span>
+            <span class="checkbox-sub">Automatically convert prices whenever you visit any web page (requires permission).</span>
+          </div>
+        </label>
+
+        <h3 class="subsection-title">Per-Site Rules</h3>
+        <p class="card-desc">Custom settings configured for specific web domains.</p>
+        <div class="table-wrapper">
+          <table class="rules-table">
+            <thead>
+              <tr>
+                <th>Domain</th>
+                <th>Behavior</th>
+                <th>Assumed Currency</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="rules-table-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Backup, Import & Export -->
+      <section class="settings-card">
+        <h2 class="card-title">Backup & Restore</h2>
+        <p class="card-desc">Export your preferences as a JSON file or restore from a previous backup.</p>
+        <div class="backup-actions">
+          <button id="btn-export-settings" class="btn-secondary" type="button">Export Settings JSON</button>
+          <label class="btn-secondary file-upload-btn">
+            Import Settings JSON
+            <input type="file" id="input-import-settings" accept=".json" style="display: none;" />
+          </label>
+        </div>
+      </section>
+    </main>
+
+    <!-- Save confirmation toast -->
+    <div id="save-toast" class="save-toast" role="status" aria-live="polite">Preferences saved</div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
