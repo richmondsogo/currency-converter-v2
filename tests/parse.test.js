@@ -1,4 +1,4 @@
-const assert = require('assert');
+import assert from 'node:assert';
 
 // Currency symbol mappings matching src/background.js
 const SYMBOL_MAP = {
