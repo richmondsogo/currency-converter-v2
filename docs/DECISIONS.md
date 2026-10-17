@@ -48,3 +48,20 @@ This document records key technical decisions, trade-offs, and justifications ma
 ## 7. Currency Metadata Generation
 - **Decision**: Build `scripts/generate-currencies.js` using Node's `Intl.supportedValuesOf('currency')`, `Intl.DisplayNames`, and `Intl.NumberFormat`, merged with a curated override map for symbols, aliases, and ccTLD mappings, generating `src/shared/currencies-data.js`.
 - **Static Artifact**: Committed to the repository so the runtime extension has zero build-time dependency on live external metadata.
+
+## 8. Zero `innerHTML` and XSS Prevention
+- **Decision**: Ban `innerHTML` completely across all extension entry points (`content/ui.js`, `popup/popup.js`, `options/options.js`). Build all elements strictly using native DOM APIs (`document.createElement()`, `document.createTextNode()`, `element.replaceChildren()`, `element.textContent`).
+- **Rationale**: Eliminates the risk of script injection from untrusted web page contents or malformed price strings. Guarantees 100% compliance with Mozilla Add-on Review Policies and passes `web-ext lint` with zero errors, zero notices, and zero warnings.
+
+## 9. Innermost-First Split Price Assembly
+- **Decision**: When detecting split prices across sibling/child tags (such as Amazon product blocks or nested currency/decimal spans), candidate elements are sorted ascending by descendant element count (`getElementsByTagName('*').length`), evaluating innermost elements first. Additionally, any element that contains an already-converted child or whose ancestor is already converted is skipped.
+- **Rationale**: Prevents outer wrapper containers (like a whole card or price container `<div>`) from wiping out sibling markup when only an inner `<span>` is the true split-price unit. Ensures 100% byte-for-byte fidelity when reverting prices.
+
+## 10. Open Shadow DOM Traversal
+- **Decision**: Implement recursive shadow root discovery via `_findAllRoots()`. Both TreeWalker text node scans and split-price candidate selections iterate across light DOM and all open shadow DOM trees attached to host elements.
+- **Rationale**: Modern web applications and web components frequently encapsulate checkout or catalog UI inside Shadow DOM. Scanning open shadow roots ensures prices in modern web components are converted seamlessly.
+
+## 11. Firefox MV3 & Cross-Browser Shim
+- **Decision**: Use `src/shared/browser.js` to provide unified promise-based access to `chrome.*` and `browser.*` APIs. Firefox uses `background.scripts: ["background.js"]` and preserves the gecko add-on ID `currency-converter-fx@richmond.addons`, while Chrome uses `background.service_worker: "background.js"`.
+- **Rationale**: Ensures full parity and idiomatic Manifest V3 compliance across Chromium engines (Chrome, Edge, Brave, Opera) and Mozilla Gecko (Firefox).
+
