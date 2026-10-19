@@ -30,9 +30,47 @@ function notifyBackgroundOfStatus() {
   } catch {}
 }
 
+function ensureHighlightStyles(doc = document) {
+  if (!doc || doc.getElementById('cc-highlight-styles')) return;
+  const style = doc.createElement('style');
+  style.id = 'cc-highlight-styles';
+  style.textContent = `
+    .cc-price-highlight {
+      background-color: rgba(37, 99, 235, 0.08) !important;
+      border-bottom: 1.5px dashed #3b82f6 !important;
+      border-radius: 2px !important;
+      padding: 0 2px !important;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+      cursor: help !important;
+      transition: background-color 140ms ease !important;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .cc-price-highlight:hover {
+        background-color: rgba(37, 99, 235, 0.16) !important;
+      }
+    }
+    @media (prefers-color-scheme: dark) {
+      .cc-price-highlight {
+        background-color: rgba(96, 165, 250, 0.15) !important;
+        border-bottom-color: #60a5fa !important;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .cc-price-highlight:hover {
+          background-color: rgba(96, 165, 250, 0.25) !important;
+        }
+      }
+    }
+  `;
+  (doc.head || doc.documentElement).appendChild(style);
+}
+
 async function performConversion(options = {}) {
   const targetCurrency = options.targetCurrency || currentSettings?.targetCurrency || 'USD';
   const displayMode = options.displayMode || currentSettings?.displayMode || 'replace';
+  if (displayMode === 'replace_highlight') {
+    ensureHighlightStyles(document);
+  }
   const roundWhole = options.roundWhole !== undefined ? options.roundWhole : (currentSettings?.roundWhole || false);
   const showInPageBar = options.showInPageBar !== undefined ? options.showInPageBar : (currentSettings?.showInPageBar !== false);
 

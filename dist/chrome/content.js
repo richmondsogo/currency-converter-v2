@@ -3510,8 +3510,9 @@
       bar.appendChild(sep1);
       const btnOriginal = this.doc.createElement("button");
       btnOriginal.className = "cc-btn";
-      btnOriginal.textContent = "Show original";
       btnOriginal.setAttribute("type", "button");
+      btnOriginal.setAttribute("aria-label", "Restore original page prices");
+      btnOriginal.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="cc-btn-icon" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>Show original</span>`;
       btnOriginal.addEventListener("click", (e) => {
         e.preventDefault();
         if (this.onShowOriginal) this.onShowOriginal();
@@ -3547,7 +3548,8 @@
       });
       const arrow = this.doc.createElement("span");
       arrow.className = "cc-select-arrow";
-      arrow.textContent = "\u25BE";
+      arrow.setAttribute("aria-hidden", "true");
+      arrow.innerHTML = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
       selectWrapper.appendChild(select);
       selectWrapper.appendChild(arrow);
       bar.appendChild(selectWrapper);
@@ -3555,10 +3557,10 @@
       btnClose.className = "cc-btn-close";
       btnClose.setAttribute("type", "button");
       btnClose.setAttribute("aria-label", "Dismiss price bar");
-      btnClose.textContent = "\u2715";
+      btnClose.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
       btnClose.addEventListener("click", (e) => {
         e.preventDefault();
-        bar.style.display = "none";
+        bar.classList.add("cc-bar-exiting");
         this.isDismissedForSession = true;
         try {
           if (typeof sessionStorage !== "undefined") {
@@ -3566,7 +3568,11 @@
           }
         } catch {
         }
-        if (this.onDismiss) this.onDismiss();
+        setTimeout(() => {
+          bar.style.display = "none";
+          bar.classList.remove("cc-bar-exiting");
+          if (this.onDismiss) this.onDismiss();
+        }, 150);
       });
       bar.appendChild(btnClose);
       return bar;
@@ -3586,6 +3592,13 @@
     }
     showTooltip({ originalAmount, originalCurrency, convertedAmount, rate, date, x, y }) {
       if (!this.tooltipElement) return;
+      const now = Date.now();
+      const isConsecutiveHover = this.lastHideTimestamp && now - this.lastHideTimestamp < 350;
+      if (isConsecutiveHover) {
+        this.tooltipElement.setAttribute("data-instant", "true");
+      } else {
+        this.tooltipElement.removeAttribute("data-instant");
+      }
       const titleEl = this.tooltipElement.querySelector(".cc-tooltip-title");
       const subEl = this.tooltipElement.querySelector(".cc-tooltip-sub");
       const formattedOriginal = formatCurrency(originalAmount, originalCurrency);
@@ -3602,6 +3615,7 @@
     }
     hideTooltip() {
       if (!this.tooltipElement) return;
+      this.lastHideTimestamp = Date.now();
       this.tooltipElement.classList.remove("visible");
       this.tooltipElement.setAttribute("aria-hidden", "true");
     }
@@ -3675,7 +3689,7 @@
   }
 
   // src/content/ui.css
-  var ui_default = '/* src/content/ui.css - Shadow DOM Isolated Styles */\n\n:host {\n  all: initial;\n  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;\n  -webkit-font-smoothing: antialiased;\n  -moz-osx-font-smoothing: grayscale;\n}\n\n*, *::before, *::after {\n  box-sizing: border-box;\n  margin: 0;\n  padding: 0;\n}\n\n.cc-container {\n  position: fixed;\n  top: 14px;\n  left: 50%;\n  transform: translateX(-50%);\n  z-index: 2147483647;\n  pointer-events: none;\n  font-size: 13px;\n  color: #09090b;\n}\n\n.cc-bar {\n  pointer-events: auto;\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  padding: 6px 12px 6px 10px;\n  background: #ffffff;\n  border: 1px solid #e4e4e7;\n  border-radius: 9999px;\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);\n  user-select: none;\n  animation: cc-slide-down 0.2s cubic-bezier(0.16, 1, 0.3, 1);\n}\n\n@keyframes cc-slide-down {\n  from {\n    opacity: 0;\n    transform: translateY(-8px);\n  }\n  to {\n    opacity: 1;\n    transform: translateY(0);\n  }\n}\n\n.cc-brand-badge {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 20px;\n  height: 20px;\n  background: #18181b;\n  color: #fafafa;\n  border-radius: 5px;\n  font-size: 11px;\n  font-weight: 700;\n  letter-spacing: -0.04em;\n  flex-shrink: 0;\n}\n\n.cc-info {\n  display: flex;\n  align-items: center;\n  gap: 5px;\n  white-space: nowrap;\n  font-weight: 500;\n}\n\n.cc-currency-code {\n  font-weight: 600;\n  color: #09090b;\n}\n\n.cc-sep {\n  color: #d4d4d8;\n  font-size: 11px;\n}\n\n.cc-btn {\n  background: transparent;\n  border: 1px solid #e4e4e7;\n  border-radius: 9999px;\n  padding: 3px 10px;\n  font-size: 12px;\n  font-weight: 500;\n  color: #18181b;\n  cursor: pointer;\n  outline: none;\n  transition: background 0.15s ease, border-color 0.15s ease;\n  white-space: nowrap;\n}\n\n.cc-btn:hover {\n  background: #f4f4f5;\n  border-color: #d4d4d8;\n}\n\n.cc-btn:focus-visible {\n  outline: 2px solid #2563eb;\n  outline-offset: 1px;\n}\n\n.cc-select-wrapper {\n  position: relative;\n  display: inline-flex;\n  align-items: center;\n}\n\n.cc-select {\n  appearance: none;\n  -webkit-appearance: none;\n  background: transparent;\n  border: 1px solid #e4e4e7;\n  border-radius: 9999px;\n  padding: 3px 22px 3px 9px;\n  font-size: 12px;\n  font-weight: 500;\n  color: #18181b;\n  cursor: pointer;\n  outline: none;\n  transition: background 0.15s ease, border-color 0.15s ease;\n}\n\n.cc-select:hover {\n  background: #f4f4f5;\n  border-color: #d4d4d8;\n}\n\n.cc-select:focus-visible {\n  outline: 2px solid #2563eb;\n  outline-offset: 1px;\n}\n\n.cc-select-arrow {\n  position: absolute;\n  right: 8px;\n  pointer-events: none;\n  font-size: 9px;\n  color: #71717a;\n}\n\n.cc-btn-close {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 22px;\n  height: 22px;\n  background: transparent;\n  border: none;\n  border-radius: 50%;\n  color: #71717a;\n  cursor: pointer;\n  font-size: 13px;\n  line-height: 1;\n  transition: background 0.15s ease, color 0.15s ease;\n  outline: none;\n}\n\n.cc-btn-close:hover {\n  background: #f4f4f5;\n  color: #09090b;\n}\n\n.cc-btn-close:focus-visible {\n  outline: 2px solid #2563eb;\n  outline-offset: 1px;\n}\n\n/* Tooltip */\n.cc-tooltip {\n  position: fixed;\n  z-index: 2147483647;\n  pointer-events: none;\n  background: #18181b;\n  color: #fafafa;\n  border-radius: 6px;\n  padding: 8px 12px;\n  font-size: 12px;\n  line-height: 1.4;\n  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);\n  max-width: 280px;\n  opacity: 0;\n  transform: translateY(4px);\n  transition: opacity 0.15s ease, transform 0.15s ease;\n}\n\n.cc-tooltip.visible {\n  opacity: 1;\n  transform: translateY(0);\n}\n\n.cc-tooltip-title {\n  font-weight: 600;\n  margin-bottom: 2px;\n  color: #ffffff;\n}\n\n.cc-tooltip-sub {\n  color: #a1a1aa;\n  font-size: 11px;\n}\n\n/* Dark Mode Support */\n@media (prefers-color-scheme: dark) {\n  .cc-bar {\n    background: #18181b;\n    border-color: #27272a;\n    color: #fafafa;\n    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);\n  }\n\n  .cc-brand-badge {\n    background: #fafafa;\n    color: #18181b;\n  }\n\n  .cc-currency-code {\n    color: #fafafa;\n  }\n\n  .cc-sep {\n    color: #3f3f46;\n  }\n\n  .cc-btn, .cc-select {\n    border-color: #27272a;\n    color: #fafafa;\n  }\n\n  .cc-btn:hover, .cc-select:hover {\n    background: #27272a;\n    border-color: #3f3f46;\n  }\n\n  .cc-select-arrow {\n    color: #a1a1aa;\n  }\n\n  .cc-btn-close {\n    color: #a1a1aa;\n  }\n\n  .cc-btn-close:hover {\n    background: #27272a;\n    color: #ffffff;\n  }\n\n  .cc-tooltip {\n    background: #27272a;\n    border: 1px solid #3f3f46;\n  }\n}\n';
+  var ui_default = '/* src/content/ui.css - Shadow DOM Isolated Styles */\r\n\r\n:host {\r\n  all: initial;\r\n  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;\r\n  -webkit-font-smoothing: antialiased;\r\n  -moz-osx-font-smoothing: grayscale;\r\n  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);\r\n  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);\r\n}\r\n\r\n*, *::before, *::after {\r\n  box-sizing: border-box;\r\n  margin: 0;\r\n  padding: 0;\r\n}\r\n\r\n.cc-container {\r\n  position: fixed;\r\n  top: 14px;\r\n  left: 50%;\r\n  transform: translateX(-50%);\r\n  z-index: 2147483647;\r\n  pointer-events: none;\r\n  font-size: 13px;\r\n  color: #09090b;\r\n}\r\n\r\n.cc-bar {\r\n  pointer-events: auto;\r\n  display: flex;\r\n  align-items: center;\r\n  gap: 10px;\r\n  padding: 6px 14px 6px 10px;\r\n  background: rgba(255, 255, 255, 0.92);\r\n  backdrop-filter: blur(16px);\r\n  -webkit-backdrop-filter: blur(16px);\r\n  border: 1px solid rgba(0, 0, 0, 0.08);\r\n  border-radius: 9999px;\r\n  box-shadow: 0 8px 28px -4px rgba(0, 0, 0, 0.1), 0 2px 6px -1px rgba(0, 0, 0, 0.04);\r\n  user-select: none;\r\n  animation: cc-slide-down 0.22s var(--ease-out);\r\n  will-change: transform, opacity;\r\n}\r\n\r\n@keyframes cc-slide-down {\r\n  from {\r\n    opacity: 0;\r\n    transform: translateY(-12px) scale(0.96);\r\n  }\r\n  to {\r\n    opacity: 1;\r\n    transform: translateY(0) scale(1);\r\n  }\r\n}\r\n\r\n.cc-bar.cc-bar-exiting {\r\n  animation: cc-slide-up-exit 0.15s var(--ease-out) forwards;\r\n}\r\n\r\n@keyframes cc-slide-up-exit {\r\n  from {\r\n    opacity: 1;\r\n    transform: translateY(0) scale(1);\r\n  }\r\n  to {\r\n    opacity: 0;\r\n    transform: translateY(-8px) scale(0.96);\r\n  }\r\n}\r\n\r\n.cc-brand-badge {\r\n  display: inline-flex;\r\n  align-items: center;\r\n  justify-content: center;\r\n  width: 20px;\r\n  height: 20px;\r\n  background: #18181b;\r\n  color: #fafafa;\r\n  border-radius: 5px;\r\n  font-size: 11px;\r\n  font-weight: 700;\r\n  letter-spacing: -0.04em;\r\n  flex-shrink: 0;\r\n}\r\n\r\n.cc-info {\r\n  display: flex;\r\n  align-items: center;\r\n  gap: 5px;\r\n  white-space: nowrap;\r\n  font-weight: 500;\r\n  font-variant-numeric: tabular-nums;\r\n}\r\n\r\n.cc-currency-code {\r\n  font-weight: 600;\r\n  color: #09090b;\r\n}\r\n\r\n.cc-sep {\r\n  color: #d4d4d8;\r\n  font-size: 11px;\r\n}\r\n\r\n.cc-btn {\r\n  background: transparent;\r\n  border: 1px solid #e4e4e7;\r\n  border-radius: 9999px;\r\n  padding: 3px 10px;\r\n  font-size: 12px;\r\n  font-weight: 500;\r\n  color: #18181b;\r\n  cursor: pointer;\r\n  outline: none;\r\n  display: inline-flex;\r\n  align-items: center;\r\n  gap: 5px;\r\n  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms var(--ease-out);\r\n  white-space: nowrap;\r\n  user-select: none;\r\n}\r\n\r\n.cc-btn-icon {\r\n  flex-shrink: 0;\r\n  color: #71717a;\r\n  transition: color 140ms ease;\r\n}\r\n\r\n@media (hover: hover) and (pointer: fine) {\r\n  .cc-btn:hover {\r\n    background: #f4f4f5;\r\n    border-color: #d4d4d8;\r\n  }\r\n  .cc-btn:hover .cc-btn-icon {\r\n    color: #18181b;\r\n  }\r\n}\r\n\r\n.cc-btn:active {\r\n  transform: scale(0.96);\r\n}\r\n\r\n.cc-btn:focus-visible {\r\n  outline: 2px solid #2563eb;\r\n  outline-offset: 1px;\r\n}\r\n\r\n.cc-select-wrapper {\r\n  position: relative;\r\n  display: inline-flex;\r\n  align-items: center;\r\n}\r\n\r\n.cc-select {\r\n  appearance: none;\r\n  -webkit-appearance: none;\r\n  background: transparent;\r\n  border: 1px solid #e4e4e7;\r\n  border-radius: 9999px;\r\n  padding: 3px 22px 3px 9px;\r\n  font-size: 12px;\r\n  font-weight: 500;\r\n  color: #18181b;\r\n  cursor: pointer;\r\n  outline: none;\r\n  font-variant-numeric: tabular-nums;\r\n  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms var(--ease-out);\r\n}\r\n\r\n@media (hover: hover) and (pointer: fine) {\r\n  .cc-select:hover {\r\n    background: #f4f4f5;\r\n    border-color: #d4d4d8;\r\n  }\r\n}\r\n\r\n.cc-select:active {\r\n  transform: scale(0.97);\r\n}\r\n\r\n.cc-select:focus-visible {\r\n  outline: 2px solid #2563eb;\r\n  outline-offset: 1px;\r\n}\r\n\r\n.cc-select-arrow {\r\n  position: absolute;\r\n  right: 8px;\r\n  pointer-events: none;\r\n  display: inline-flex;\r\n  align-items: center;\r\n  color: #71717a;\r\n}\r\n\r\n.cc-btn-close {\r\n  display: inline-flex;\r\n  align-items: center;\r\n  justify-content: center;\r\n  width: 22px;\r\n  height: 22px;\r\n  background: transparent;\r\n  border: none;\r\n  border-radius: 50%;\r\n  color: #71717a;\r\n  cursor: pointer;\r\n  outline: none;\r\n  transition: background-color 140ms ease, color 140ms ease, transform 140ms var(--ease-out);\r\n}\r\n\r\n@media (hover: hover) and (pointer: fine) {\r\n  .cc-btn-close:hover {\r\n    background: #f4f4f5;\r\n    color: #09090b;\r\n  }\r\n}\r\n\r\n.cc-btn-close:active {\r\n  transform: scale(0.90);\r\n}\r\n\r\n.cc-btn-close:focus-visible {\r\n  outline: 2px solid #2563eb;\r\n  outline-offset: 1px;\r\n}\r\n\r\n/* Tooltip */\r\n.cc-tooltip {\r\n  position: fixed;\r\n  z-index: 2147483647;\r\n  pointer-events: none;\r\n  background: rgba(24, 24, 27, 0.94);\r\n  backdrop-filter: blur(12px);\r\n  -webkit-backdrop-filter: blur(12px);\r\n  color: #fafafa;\r\n  border: 1px solid rgba(255, 255, 255, 0.12);\r\n  border-radius: 8px;\r\n  padding: 8px 12px;\r\n  font-size: 12px;\r\n  line-height: 1.4;\r\n  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.35), 0 2px 6px -1px rgba(0, 0, 0, 0.15);\r\n  max-width: 280px;\r\n  opacity: 0;\r\n  transform: translateY(4px) scale(0.96);\r\n  transform-origin: bottom center;\r\n  transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out);\r\n  font-variant-numeric: tabular-nums;\r\n  will-change: transform, opacity;\r\n}\r\n\r\n.cc-tooltip[data-instant] {\r\n  transition-duration: 0ms !important;\r\n}\r\n\r\n.cc-tooltip.visible {\r\n  opacity: 1;\r\n  transform: translateY(0) scale(1);\r\n}\r\n\r\n.cc-tooltip-title {\r\n  font-weight: 600;\r\n  margin-bottom: 2px;\r\n  color: #ffffff;\r\n}\r\n\r\n.cc-tooltip-sub {\r\n  color: #a1a1aa;\r\n  font-size: 11px;\r\n}\r\n\r\n/* Dark Mode Support */\r\n@media (prefers-color-scheme: dark) {\r\n  .cc-bar {\r\n    background: rgba(24, 24, 27, 0.90);\r\n    border-color: rgba(255, 255, 255, 0.12);\r\n    color: #fafafa;\r\n    box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.5), 0 2px 6px -1px rgba(0, 0, 0, 0.25);\r\n  }\r\n\r\n  .cc-brand-badge {\r\n    background: #fafafa;\r\n    color: #18181b;\r\n  }\r\n\r\n  .cc-currency-code {\r\n    color: #fafafa;\r\n  }\r\n\r\n  .cc-sep {\r\n    color: #3f3f46;\r\n  }\r\n\r\n  .cc-btn, .cc-select {\r\n    border-color: #27272a;\r\n    color: #fafafa;\r\n  }\r\n\r\n  @media (hover: hover) and (pointer: fine) {\r\n    .cc-btn:hover, .cc-select:hover {\r\n      background: #27272a;\r\n      border-color: #3f3f46;\r\n    }\r\n  }\r\n\r\n  .cc-select-arrow {\r\n    color: #a1a1aa;\r\n  }\r\n\r\n  .cc-btn-close {\r\n    color: #a1a1aa;\r\n  }\r\n\r\n  @media (hover: hover) and (pointer: fine) {\r\n    .cc-btn-close:hover {\r\n      background: #27272a;\r\n      color: #ffffff;\r\n    }\r\n  }\r\n\r\n  .cc-tooltip {\r\n    background: rgba(24, 24, 27, 0.96);\r\n    border-color: rgba(255, 255, 255, 0.15);\r\n  }\r\n}\r\n\r\n/* Accessibility: Reduced Motion */\r\n@media (prefers-reduced-motion: reduce) {\r\n  .cc-bar {\r\n    animation: none;\r\n  }\r\n\r\n  .cc-bar.cc-bar-exiting {\r\n    animation: none;\r\n    opacity: 0;\r\n  }\r\n\r\n  .cc-btn,\r\n  .cc-btn-close,\r\n  .cc-select {\r\n    transition: none;\r\n    transform: none !important;\r\n  }\r\n\r\n  .cc-tooltip {\r\n    transition: opacity 120ms ease;\r\n    transform: none !important;\r\n  }\r\n}\r\n\r\n';
 
   // src/content/content.js
   var currentScanner = null;
@@ -3700,9 +3714,46 @@
     } catch {
     }
   }
+  function ensureHighlightStyles(doc = document) {
+    if (!doc || doc.getElementById("cc-highlight-styles")) return;
+    const style = doc.createElement("style");
+    style.id = "cc-highlight-styles";
+    style.textContent = `
+    .cc-price-highlight {
+      background-color: rgba(37, 99, 235, 0.08) !important;
+      border-bottom: 1.5px dashed #3b82f6 !important;
+      border-radius: 2px !important;
+      padding: 0 2px !important;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+      cursor: help !important;
+      transition: background-color 140ms ease !important;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .cc-price-highlight:hover {
+        background-color: rgba(37, 99, 235, 0.16) !important;
+      }
+    }
+    @media (prefers-color-scheme: dark) {
+      .cc-price-highlight {
+        background-color: rgba(96, 165, 250, 0.15) !important;
+        border-bottom-color: #60a5fa !important;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .cc-price-highlight:hover {
+          background-color: rgba(96, 165, 250, 0.25) !important;
+        }
+      }
+    }
+  `;
+    (doc.head || doc.documentElement).appendChild(style);
+  }
   async function performConversion(options = {}) {
     const targetCurrency = options.targetCurrency || currentSettings?.targetCurrency || "USD";
     const displayMode = options.displayMode || currentSettings?.displayMode || "replace";
+    if (displayMode === "replace_highlight") {
+      ensureHighlightStyles(document);
+    }
     const roundWhole = options.roundWhole !== void 0 ? options.roundWhole : currentSettings?.roundWhole || false;
     const showInPageBar = options.showInPageBar !== void 0 ? options.showInPageBar : currentSettings?.showInPageBar !== false;
     if (!globalRates || options.forceRefreshRates) {
