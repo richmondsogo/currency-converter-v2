@@ -2514,18 +2514,37 @@
   var saveToast = document.getElementById("save-toast");
   function showSaveToast(message = "Preferences saved") {
     if (toastTimeout) clearTimeout(toastTimeout);
-    saveToast.textContent = message;
+    const textEl = saveToast.querySelector(".toast-text");
+    if (textEl) {
+      textEl.textContent = message;
+    } else {
+      saveToast.textContent = message;
+    }
     saveToast.classList.add("visible");
     toastTimeout = setTimeout(() => {
       saveToast.classList.remove("visible");
-    }, 2e3);
+    }, 2200);
   }
   async function loadSettings() {
     try {
       currentSettings = await sendMessage({ type: MSG.GET_SETTINGS });
+      if (!currentSettings) throw new Error("No settings returned");
       renderUI();
     } catch (err) {
-      console.error("[Options] Failed to load settings:", err);
+      console.warn("[Options] Using default settings fallback:", err);
+      currentSettings = {
+        targetCurrency: "USD",
+        pinnedCurrencies: ["NGN", "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "INR"],
+        displayMode: "replace",
+        roundWhole: false,
+        ambiguousDollar: "USD",
+        showCrypto: false,
+        showInPageBar: true,
+        autoConvertAll: false,
+        theme: "system",
+        perSite: {}
+      };
+      renderUI();
     }
   }
   function renderUI() {
@@ -2555,18 +2574,32 @@
   function renderPinnedChips(allCurrencies) {
     pinnedChipsContainer.replaceChildren();
     const pinned = currentSettings.pinnedCurrencies || [];
+    const countBadge = document.getElementById("pinned-count-badge");
+    if (countBadge) {
+      countBadge.textContent = `${pinned.length} / 8`;
+    }
     for (const code of pinned) {
       const meta = getCurrencyMeta(code);
       const chip = document.createElement("div");
       chip.className = "currency-chip";
-      const text = document.createElement("span");
-      text.textContent = `${code} (${meta ? meta.symbol : ""})`;
-      chip.appendChild(text);
+      const codeSpan = document.createElement("span");
+      codeSpan.className = "chip-code";
+      codeSpan.textContent = code;
+      chip.appendChild(codeSpan);
+      if (meta && meta.symbol) {
+        const symSpan = document.createElement("span");
+        symSpan.className = "chip-symbol";
+        symSpan.textContent = meta.symbol;
+        chip.appendChild(symSpan);
+      }
       const btnRemove = document.createElement("button");
       btnRemove.className = "chip-remove-btn";
-      btnRemove.textContent = "\u2715";
       btnRemove.setAttribute("type", "button");
       btnRemove.setAttribute("aria-label", `Remove ${code} from pinned`);
+      const tmplChipIcon = document.getElementById("template-chip-remove-icon");
+      if (tmplChipIcon) {
+        btnRemove.appendChild(tmplChipIcon.content.cloneNode(true));
+      }
       btnRemove.addEventListener("click", async () => {
         const updated = pinned.filter((c) => c !== code);
         await savePartialSettings({ pinnedCurrencies: updated });
@@ -2577,7 +2610,7 @@
     selectAddPinned.replaceChildren();
     const placeholderOpt = document.createElement("option");
     placeholderOpt.value = "";
-    placeholderOpt.textContent = "+ Add currency to pinned...";
+    placeholderOpt.textContent = pinned.length >= 8 ? "Pinned limit reached (8 max)" : "+ Add currency to pinned...";
     selectAddPinned.appendChild(placeholderOpt);
     if (pinned.length >= 8) {
       selectAddPinned.disabled = true;
@@ -2587,7 +2620,7 @@
         if (!pinned.includes(c.code)) {
           const opt = document.createElement("option");
           opt.value = c.code;
-          opt.textContent = `${c.code} \u2014 ${c.name}`;
+          opt.textContent = `${c.code} (${c.symbol}) \u2014 ${c.name}`;
           selectAddPinned.appendChild(opt);
         }
       }
@@ -2597,47 +2630,65 @@
     rulesTableBody.replaceChildren();
     const perSite = currentSettings.perSite || {};
     const entries = Object.entries(perSite);
+    const rulesCountBadge = document.getElementById("rules-count-badge");
+    if (rulesCountBadge) {
+      rulesCountBadge.textContent = `${entries.length} ${entries.length === 1 ? "rule" : "rules"}`;
+    }
     if (entries.length === 0) {
-      const tr = document.createElement("tr");
-      const td = document.createElement("td");
-      td.colSpan = 4;
-      td.style.color = "#71717a";
-      td.style.textAlign = "center";
-      td.style.padding = "16px";
-      td.textContent = "No custom site rules configured yet.";
-      tr.appendChild(td);
-      rulesTableBody.appendChild(tr);
+      const tmplEmpty = document.getElementById("template-empty-rules");
+      if (tmplEmpty) {
+        rulesTableBody.appendChild(tmplEmpty.content.cloneNode(true));
+      }
       return;
     }
     for (const [hostname, rule] of entries) {
       const tr = document.createElement("tr");
+      tr.className = "rule-row";
       const tdDomain = document.createElement("td");
-      tdDomain.textContent = hostname;
-      tdDomain.style.fontWeight = "500";
+      tdDomain.className = "rule-domain-cell";
+      const hostSpan = document.createElement("span");
+      hostSpan.className = "domain-host";
+      hostSpan.textContent = hostname;
+      tdDomain.appendChild(hostSpan);
       tr.appendChild(tdDomain);
       const tdBehavior = document.createElement("td");
+      const badge = document.createElement("span");
+      const dot = document.createElement("span");
+      dot.className = "badge-dot";
+      const badgeText = document.createElement("span");
       if (rule.autoConvert) {
-        const badge = document.createElement("span");
         badge.className = "badge-tag badge-always";
-        badge.textContent = "Always Convert";
-        tdBehavior.appendChild(badge);
+        badgeText.textContent = "Always Convert";
+        badge.appendChild(dot);
+        badge.appendChild(badgeText);
       } else if (rule.neverConvert) {
-        const badge = document.createElement("span");
         badge.className = "badge-tag badge-never";
-        badge.textContent = "Never Convert";
-        tdBehavior.appendChild(badge);
+        badgeText.textContent = "Never Convert";
+        badge.appendChild(dot);
+        badge.appendChild(badgeText);
       } else {
-        tdBehavior.textContent = "Default";
+        badge.className = "badge-tag badge-default";
+        badge.textContent = "Default";
       }
+      tdBehavior.appendChild(badge);
       tr.appendChild(tdBehavior);
       const tdCurrency = document.createElement("td");
-      tdCurrency.textContent = rule.assumedCurrency || "Auto";
+      tdCurrency.className = "rule-currency-cell";
+      tdCurrency.textContent = rule.assumedCurrency || "Auto-detect";
       tr.appendChild(tdCurrency);
       const tdAction = document.createElement("td");
+      tdAction.className = "rule-action-cell";
       const btnDelete = document.createElement("button");
       btnDelete.className = "btn-danger-small";
-      btnDelete.textContent = "Remove";
       btnDelete.setAttribute("type", "button");
+      btnDelete.setAttribute("aria-label", `Remove rule for ${hostname}`);
+      const tmplDelIcon = document.getElementById("template-delete-icon");
+      if (tmplDelIcon) {
+        btnDelete.appendChild(tmplDelIcon.content.cloneNode(true));
+      }
+      const delLabel = document.createElement("span");
+      delLabel.textContent = "Remove";
+      btnDelete.appendChild(delLabel);
       btnDelete.addEventListener("click", async () => {
         const updatedPerSite = { ...perSite };
         delete updatedPerSite[hostname];
@@ -2661,6 +2712,41 @@
       }
     } catch (err) {
       console.error("[Options] Failed to update settings:", err);
+    }
+  }
+  function setupNavigation() {
+    const navPills = document.querySelectorAll(".nav-pill");
+    const sections = ["section-general", "section-pinned", "section-automation", "section-backup"].map((id) => document.getElementById(id)).filter(Boolean);
+    navPills.forEach((pill) => {
+      pill.addEventListener("click", (e) => {
+        e.preventDefault();
+        const targetId = pill.getAttribute("href")?.replace("#", "");
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
+          navPills.forEach((p) => p.classList.remove("active"));
+          pill.classList.add("active");
+        }
+      });
+    });
+    if ("IntersectionObserver" in window && sections.length > 0) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const id = entry.target.id;
+            navPills.forEach((pill) => {
+              if (pill.getAttribute("href") === `#${id}`) {
+                navPills.forEach((p) => p.classList.remove("active"));
+                pill.classList.add("active");
+              }
+            });
+          }
+        });
+      }, {
+        rootMargin: "-20% 0px -70% 0px",
+        threshold: 0
+      });
+      sections.forEach((sec) => observer.observe(sec));
     }
   }
   function setupEventListeners() {
@@ -2775,5 +2861,6 @@
   document.addEventListener("DOMContentLoaded", () => {
     loadSettings();
     setupEventListeners();
+    setupNavigation();
   });
 })();

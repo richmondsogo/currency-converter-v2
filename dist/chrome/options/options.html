@@ -11,127 +11,203 @@
     <!-- Header -->
     <header class="options-header">
       <div class="header-brand">
-        <div class="brand-badge">fx</div>
+        <div class="brand-badge" aria-hidden="true">
+          <span>fx</span>
+        </div>
         <div>
-          <h1 class="header-title">Currency Convertr</h1>
+          <div class="title-row">
+            <h1 class="header-title">Currency Convertr</h1>
+            <span class="version-pill">v2.0</span>
+          </div>
           <p class="header-subtitle">Preferences and Configuration</p>
         </div>
       </div>
       <div class="header-actions">
-        <button id="btn-reset" class="btn-secondary" type="button">Reset to Defaults</button>
+        <button id="btn-reset" class="btn-secondary btn-header-reset" type="button" title="Reset all preferences to factory defaults">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          <span>Reset to Defaults</span>
+        </button>
       </div>
     </header>
 
+    <!-- Quick Navigation Anchor Pills -->
+    <nav class="options-nav" aria-label="Settings sections">
+      <a href="#section-general" class="nav-pill active">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+        <span>General</span>
+      </a>
+      <a href="#section-pinned" class="nav-pill">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>
+        <span>Pinned</span>
+      </a>
+      <a href="#section-automation" class="nav-pill">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span>Site Rules</span>
+      </a>
+      <a href="#section-backup" class="nav-pill">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Backup</span>
+      </a>
+    </nav>
+
     <main class="options-content">
-      <!-- General Preferences -->
-      <section class="settings-card">
-        <h2 class="card-title">General Preferences</h2>
+      <!-- 1. General Preferences -->
+      <section id="section-general" class="settings-card">
+        <div class="card-header">
+          <div class="card-icon-wrap" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+          </div>
+          <div>
+            <h2 class="card-title">General Preferences</h2>
+            <p class="card-desc">Default target currency, visual formatting, and interface theme.</p>
+          </div>
+        </div>
+
         <div class="form-grid">
           <div class="form-group">
             <label for="default-target-currency" class="form-label">Default Target Currency</label>
-            <p class="form-desc">Default currency to convert prices into across pages.</p>
-            <select id="default-target-currency" class="form-select">
-              <!-- Dynamically populated -->
-            </select>
+            <p class="form-desc">Default currency for converting prices across pages.</p>
+            <div class="select-wrapper">
+              <select id="default-target-currency" class="form-select">
+                <!-- Dynamically populated -->
+              </select>
+            </div>
           </div>
 
           <div class="form-group">
             <label for="display-mode" class="form-label">Display Mode</label>
-            <p class="form-desc">How converted prices appear on the page.</p>
-            <select id="display-mode" class="form-select">
-              <option value="replace">Replace original price (tooltip on hover)</option>
-              <option value="append">Append converted price (e.g. $20.00 ≈ ₦30,512)</option>
-              <option value="replace_highlight">Replace and highlight converted prices</option>
-            </select>
+            <p class="form-desc">How converted prices appear on the host page.</p>
+            <div class="select-wrapper">
+              <select id="display-mode" class="form-select">
+                <option value="replace">Replace original price (tooltip on hover)</option>
+                <option value="append">Append converted price (e.g. $20.00 ≈ ₦30,512)</option>
+                <option value="replace_highlight">Replace and highlight converted prices</option>
+              </select>
+            </div>
           </div>
 
           <div class="form-group">
             <label for="ambiguous-dollar" class="form-label">Ambiguous "$" Symbol Default</label>
-            <p class="form-desc">Default currency when a bare "$" sign has no site or page context.</p>
-            <select id="ambiguous-dollar" class="form-select">
-              <option value="USD">USD — US Dollar</option>
-              <option value="CAD">CAD — Canadian Dollar</option>
-              <option value="AUD">AUD — Australian Dollar</option>
-              <option value="NZD">NZD — New Zealand Dollar</option>
-              <option value="SGD">SGD — Singapore Dollar</option>
-              <option value="HKD">HKD — Hong Kong Dollar</option>
-              <option value="MXN">MXN — Mexican Peso</option>
-            </select>
+            <p class="form-desc">Default currency when a bare "$" has no page or domain context.</p>
+            <div class="select-wrapper">
+              <select id="ambiguous-dollar" class="form-select">
+                <option value="USD">USD — US Dollar ($)</option>
+                <option value="CAD">CAD — Canadian Dollar (C$)</option>
+                <option value="AUD">AUD — Australian Dollar (A$)</option>
+                <option value="NZD">NZD — New Zealand Dollar (NZ$)</option>
+                <option value="SGD">SGD — Singapore Dollar (S$)</option>
+                <option value="HKD">HKD — Hong Kong Dollar (HK$)</option>
+                <option value="MXN">MXN — Mexican Peso (Mex$)</option>
+              </select>
+            </div>
           </div>
 
           <div class="form-group">
             <label for="theme-select" class="form-label">Appearance Theme</label>
-            <p class="form-desc">Theme for popup and options interface.</p>
-            <select id="theme-select" class="form-select">
-              <option value="system">System (follows OS)</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
+            <p class="form-desc">Color theme for popup and options interface.</p>
+            <div class="select-wrapper">
+              <select id="theme-select" class="form-select">
+                <option value="system">System (follows OS)</option>
+                <option value="light">Light theme</option>
+                <option value="dark">Dark theme</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="preference-list">
+          <label class="preference-row" for="check-round-whole">
+            <div class="preference-info">
+              <span class="preference-title">Round to whole numbers</span>
+              <span class="preference-sub">Omit minor decimal places on converted amounts (e.g. $25 instead of $25.43).</span>
+            </div>
+            <input type="checkbox" id="check-round-whole" class="form-checkbox" />
+          </label>
+
+          <label class="preference-row" for="check-show-inpage-bar">
+            <div class="preference-info">
+              <span class="preference-title">Show in-page floating bar</span>
+              <span class="preference-sub">Display top Google Translate-style floating status pill when prices are converted.</span>
+            </div>
+            <input type="checkbox" id="check-show-inpage-bar" class="form-checkbox" />
+          </label>
+
+          <label class="preference-row" for="check-show-crypto">
+            <div class="preference-info">
+              <span class="preference-title">Show cryptocurrencies in picker</span>
+              <span class="preference-sub">Include popular crypto assets (BTC, ETH, SOL, DOGE) in currency dropdowns.</span>
+            </div>
+            <input type="checkbox" id="check-show-crypto" class="form-checkbox" />
+          </label>
+        </div>
+      </section>
+
+      <!-- 2. Pinned Currencies -->
+      <section id="section-pinned" class="settings-card">
+        <div class="card-header">
+          <div class="card-icon-wrap" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>
+          </div>
+          <div class="card-header-main">
+            <div class="card-title-row">
+              <h2 class="card-title">Pinned Currencies</h2>
+              <span id="pinned-count-badge" class="section-badge">0 / 8</span>
+            </div>
+            <p class="card-desc">Pinned currencies appear in the right-click context menu and at the top of the currency picker.</p>
+          </div>
+        </div>
+
+        <div id="pinned-chips-container" class="chips-container" aria-label="Pinned currencies list">
+          <!-- Dynamically populated chips -->
+        </div>
+
+        <div class="add-pinned-row">
+          <div class="select-wrapper add-select-wrap">
+            <select id="select-add-pinned" class="form-select">
+              <option value="">+ Add currency to pinned...</option>
             </select>
           </div>
         </div>
-
-        <div class="checkbox-list">
-          <label class="checkbox-row">
-            <input type="checkbox" id="check-round-whole" class="form-checkbox" />
-            <div>
-              <span class="checkbox-title">Round to whole numbers</span>
-              <span class="checkbox-sub">Omit minor decimal places on converted amounts.</span>
-            </div>
-          </label>
-
-          <label class="checkbox-row">
-            <input type="checkbox" id="check-show-inpage-bar" class="form-checkbox" />
-            <div>
-              <span class="checkbox-title">Show in-page floating bar</span>
-              <span class="checkbox-sub">Display top Translate-style status bar when prices are converted.</span>
-            </div>
-          </label>
-
-          <label class="checkbox-row">
-            <input type="checkbox" id="check-show-crypto" class="form-checkbox" />
-            <div>
-              <span class="checkbox-title">Show cryptocurrencies in picker</span>
-              <span class="checkbox-sub">Include popular crypto assets (BTC, ETH, SOL, etc.) in currency selectors.</span>
-            </div>
-          </label>
-        </div>
       </section>
 
-      <!-- Pinned Currencies (Context Menu & Quick Picker) -->
-      <section class="settings-card">
-        <h2 class="card-title">Pinned Currencies (Up to 8)</h2>
-        <p class="card-desc">Pinned currencies appear in the right-click context menu and top of the currency picker.</p>
-        <div id="pinned-chips-container" class="chips-container">
-          <!-- Dynamically populated chips -->
-        </div>
-        <div class="add-pinned-row">
-          <select id="select-add-pinned" class="form-select">
-            <option value="">+ Add currency to pinned...</option>
-          </select>
-        </div>
-      </section>
-
-      <!-- Automation & Per-Site Rules -->
-      <section class="settings-card">
-        <h2 class="card-title">Automation & Site Permissions</h2>
-        <label class="checkbox-row" style="margin-bottom: 16px;">
-          <input type="checkbox" id="check-autoconvert-all" class="form-checkbox" />
-          <div>
-            <span class="checkbox-title">Auto-convert on all websites</span>
-            <span class="checkbox-sub">Automatically convert prices whenever you visit any web page (requires permission).</span>
+      <!-- 3. Automation & Per-Site Rules -->
+      <section id="section-automation" class="settings-card">
+        <div class="card-header">
+          <div class="card-icon-wrap" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
           </div>
-        </label>
+          <div class="card-header-main">
+            <div class="card-title-row">
+              <h2 class="card-title">Automation & Site Permissions</h2>
+              <span id="rules-count-badge" class="section-badge">0 rules</span>
+            </div>
+            <p class="card-desc">Automatic conversion permissions and per-domain currency behavior overrides.</p>
+          </div>
+        </div>
 
-        <h3 class="subsection-title">Per-Site Rules</h3>
-        <p class="card-desc">Custom settings configured for specific web domains.</p>
+        <div class="preference-list" style="margin-bottom: 24px;">
+          <label class="preference-row" for="check-autoconvert-all">
+            <div class="preference-info">
+              <span class="preference-title">Auto-convert on all websites</span>
+              <span class="preference-sub">Automatically scan and convert prices on every site you visit (requests optional host permission).</span>
+            </div>
+            <input type="checkbox" id="check-autoconvert-all" class="form-checkbox" />
+          </label>
+        </div>
+
+        <div class="subsection-header">
+          <h3 class="subsection-title">Domain Specific Rules</h3>
+          <p class="subsection-desc">Configured behaviors for individual websites saved from the popup.</p>
+        </div>
+
         <div class="table-wrapper">
           <table class="rules-table">
             <thead>
               <tr>
-                <th>Domain</th>
-                <th>Behavior</th>
-                <th>Assumed Currency</th>
-                <th>Action</th>
+                <th scope="col">Domain</th>
+                <th scope="col">Behavior</th>
+                <th scope="col">Assumed Currency</th>
+                <th scope="col" style="text-align: right;">Action</th>
               </tr>
             </thead>
             <tbody id="rules-table-body">
@@ -141,23 +217,65 @@
         </div>
       </section>
 
-      <!-- Backup, Import & Export -->
-      <section class="settings-card">
-        <h2 class="card-title">Backup & Restore</h2>
-        <p class="card-desc">Export your preferences as a JSON file or restore from a previous backup.</p>
+      <!-- 4. Backup, Import & Export -->
+      <section id="section-backup" class="settings-card">
+        <div class="card-header">
+          <div class="card-icon-wrap" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <div>
+            <h2 class="card-title">Backup & Restore</h2>
+            <p class="card-desc">Safely export your preferences, site rules, and pinned currencies, or restore from a backup.</p>
+          </div>
+        </div>
+
         <div class="backup-actions">
-          <button id="btn-export-settings" class="btn-secondary" type="button">Export Settings JSON</button>
+          <button id="btn-export-settings" class="btn-secondary" type="button">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Export Settings JSON</span>
+          </button>
           <label class="btn-secondary file-upload-btn">
-            Import Settings JSON
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>Import Settings JSON</span>
             <input type="file" id="input-import-settings" accept=".json" style="display: none;" />
           </label>
         </div>
       </section>
     </main>
 
-    <!-- Save confirmation toast -->
-    <div id="save-toast" class="save-toast" role="status" aria-live="polite">Preferences saved</div>
+    <!-- Save confirmation toast (Sonner style) -->
+    <div id="save-toast" class="save-toast" role="status" aria-live="polite">
+      <svg class="toast-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+      <span class="toast-text">Preferences saved</span>
+    </div>
   </div>
+
+  <!-- Declarative Templates (Eliminates innerHTML in JS) -->
+  <template id="template-empty-rules">
+    <tr class="empty-rules-row">
+      <td colspan="4" class="empty-rules-cell">
+        <div class="empty-state">
+          <div class="empty-state-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+          </div>
+          <span class="empty-state-title">No custom site rules configured</span>
+          <span class="empty-state-desc">When you set a domain to always or never convert from the popup, it will appear here.</span>
+        </div>
+      </td>
+    </tr>
+  </template>
+
+  <template id="template-chip-remove-icon">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+  </template>
+
+  <template id="template-delete-icon">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+  </template>
 
   <script src="options.js"></script>
 </body>

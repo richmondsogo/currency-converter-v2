@@ -104,8 +104,9 @@ export class InPageUI {
     // Show original button
     const btnOriginal = this.doc.createElement('button');
     btnOriginal.className = 'cc-btn';
-    btnOriginal.textContent = 'Show original';
     btnOriginal.setAttribute('type', 'button');
+    btnOriginal.setAttribute('aria-label', 'Restore original page prices');
+    btnOriginal.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="cc-btn-icon" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>Show original</span>`;
     btnOriginal.addEventListener('click', (e) => {
       e.preventDefault();
       if (this.onShowOriginal) this.onShowOriginal();
@@ -150,7 +151,8 @@ export class InPageUI {
 
     const arrow = this.doc.createElement('span');
     arrow.className = 'cc-select-arrow';
-    arrow.textContent = '▾';
+    arrow.setAttribute('aria-hidden', 'true');
+    arrow.innerHTML = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
 
     selectWrapper.appendChild(select);
     selectWrapper.appendChild(arrow);
@@ -161,17 +163,21 @@ export class InPageUI {
     btnClose.className = 'cc-btn-close';
     btnClose.setAttribute('type', 'button');
     btnClose.setAttribute('aria-label', 'Dismiss price bar');
-    btnClose.textContent = '✕';
+    btnClose.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
     btnClose.addEventListener('click', (e) => {
       e.preventDefault();
-      bar.style.display = 'none';
+      bar.classList.add('cc-bar-exiting');
       this.isDismissedForSession = true;
       try {
         if (typeof sessionStorage !== 'undefined') {
           sessionStorage.setItem('cc_bar_dismissed', 'true');
         }
       } catch {}
-      if (this.onDismiss) this.onDismiss();
+      setTimeout(() => {
+        bar.style.display = 'none';
+        bar.classList.remove('cc-bar-exiting');
+        if (this.onDismiss) this.onDismiss();
+      }, 150);
     });
     bar.appendChild(btnClose);
 
@@ -198,6 +204,14 @@ export class InPageUI {
   showTooltip({ originalAmount, originalCurrency, convertedAmount, rate, date, x, y }) {
     if (!this.tooltipElement) return;
 
+    const now = Date.now();
+    const isConsecutiveHover = this.lastHideTimestamp && (now - this.lastHideTimestamp < 350);
+    if (isConsecutiveHover) {
+      this.tooltipElement.setAttribute('data-instant', 'true');
+    } else {
+      this.tooltipElement.removeAttribute('data-instant');
+    }
+
     const titleEl = this.tooltipElement.querySelector('.cc-tooltip-title');
     const subEl = this.tooltipElement.querySelector('.cc-tooltip-sub');
 
@@ -220,6 +234,7 @@ export class InPageUI {
 
   hideTooltip() {
     if (!this.tooltipElement) return;
+    this.lastHideTimestamp = Date.now();
     this.tooltipElement.classList.remove('visible');
     this.tooltipElement.setAttribute('aria-hidden', 'true');
   }

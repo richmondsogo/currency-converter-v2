@@ -186,6 +186,8 @@ async function checkPageStatus() {
       isPageConverted = true;
       btnConvertToggle.textContent = 'Show original';
       btnConvertToggle.classList.add('active-revert');
+      liveStatusEl.classList.add('converted');
+      liveStatusEl.classList.remove('converting');
       liveStatusEl.textContent = `${status.count} prices converted to ${status.targetCurrency}`;
       if (status.targetCurrency) {
         updateSelectedTargetUI(status.targetCurrency);
@@ -194,6 +196,7 @@ async function checkPageStatus() {
       isPageConverted = false;
       btnConvertToggle.textContent = 'Convert this page';
       btnConvertToggle.classList.remove('active-revert');
+      liveStatusEl.classList.remove('converted', 'converting');
       liveStatusEl.textContent = 'Ready to convert';
     }
   } catch {
@@ -201,6 +204,7 @@ async function checkPageStatus() {
     isPageConverted = false;
     btnConvertToggle.textContent = 'Convert this page';
     btnConvertToggle.classList.remove('active-revert');
+    liveStatusEl.classList.remove('converted', 'converting');
     liveStatusEl.textContent = 'Ready to convert';
   }
 }
@@ -223,6 +227,14 @@ function setupCurrencyPicker() {
 
   currencySearchInput.addEventListener('input', (e) => {
     renderCurrencyOptions(e.target.value.trim().toLowerCase());
+  });
+
+  currencySearchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      currencyDropdown.style.display = 'none';
+      pickerBtn.setAttribute('aria-expanded', 'false');
+      pickerBtn.focus();
+    }
   });
 
   document.addEventListener('click', (e) => {
@@ -284,17 +296,40 @@ function createOptionItem(c) {
   const item = document.createElement('div');
   item.className = 'option-item';
   item.setAttribute('role', 'option');
-  if (c.code === selectedTargetCurrency) {
+  const isSelected = c.code === selectedTargetCurrency;
+  if (isSelected) {
     item.setAttribute('aria-selected', 'true');
   }
 
-  const left = document.createElement('span');
-  left.textContent = `${c.code} (${c.symbol})`;
+  const left = document.createElement('div');
+  left.className = 'option-left';
 
-  const right = document.createElement('span');
-  right.style.color = '#71717a';
-  right.style.fontSize = '11px';
-  right.textContent = c.name;
+  const codeSpan = document.createElement('span');
+  codeSpan.className = 'option-code';
+  codeSpan.textContent = c.code;
+
+  const symSpan = document.createElement('span');
+  symSpan.className = 'option-symbol';
+  symSpan.textContent = `(${c.symbol})`;
+
+  left.appendChild(codeSpan);
+  left.appendChild(symSpan);
+
+  const right = document.createElement('div');
+  right.className = 'option-right';
+
+  const nameSpan = document.createElement('span');
+  nameSpan.className = 'option-name';
+  nameSpan.textContent = c.name;
+  right.appendChild(nameSpan);
+
+  if (isSelected) {
+    const check = document.createElement('span');
+    check.className = 'option-check-icon';
+    check.setAttribute('aria-hidden', 'true');
+    check.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    right.appendChild(check);
+  }
 
   item.appendChild(left);
   item.appendChild(right);
@@ -395,6 +430,8 @@ async function saveSiteRule(rulePatch) {
 async function triggerConvert(targetCur) {
   if (!currentTab || !currentTab.id) return;
   btnConvertToggle.disabled = true;
+  liveStatusEl.classList.remove('converted');
+  liveStatusEl.classList.add('converting');
   liveStatusEl.textContent = 'Scanning and converting...';
 
   try {
@@ -423,18 +460,22 @@ async function triggerConvert(targetCur) {
       }
     });
 
+    liveStatusEl.classList.remove('converting');
     if (response && response.success) {
       isPageConverted = true;
       btnConvertToggle.textContent = 'Show original';
       btnConvertToggle.classList.add('active-revert');
+      liveStatusEl.classList.add('converted');
       liveStatusEl.textContent = `${response.count} prices converted · Rates: ${ratesData.provider || 'ECB'}`;
       if (response.count === 0) {
         liveStatusEl.textContent = 'No convertible prices found on this page';
       }
     } else {
+      liveStatusEl.classList.remove('converted');
       liveStatusEl.textContent = 'Conversion failed';
     }
   } catch (err) {
+    liveStatusEl.classList.remove('converting', 'converted');
     liveStatusEl.textContent = 'Error: ' + err.message;
   } finally {
     btnConvertToggle.disabled = false;
@@ -447,13 +488,17 @@ async function triggerRevert() {
 
   try {
     const response = await sendTabMessage(currentTab.id, { type: MSG.REVERT_PAGE });
+    liveStatusEl.classList.remove('converting', 'converted');
     if (response && response.success) {
       isPageConverted = false;
       btnConvertToggle.textContent = 'Convert this page';
       btnConvertToggle.classList.remove('active-revert');
       liveStatusEl.textContent = 'Original prices restored';
+    } else {
+      liveStatusEl.textContent = 'Could not restore original prices';
     }
   } catch (err) {
+    liveStatusEl.classList.remove('converting', 'converted');
     liveStatusEl.textContent = 'Error restoring prices';
   } finally {
     btnConvertToggle.disabled = false;

@@ -5,6 +5,8 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 *, *::before, *::after {
@@ -29,23 +31,41 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 12px 6px 10px;
-  background: #ffffff;
-  border: 1px solid #e4e4e7;
+  padding: 6px 14px 6px 10px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 9999px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 8px 28px -4px rgba(0, 0, 0, 0.1), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
   user-select: none;
-  animation: cc-slide-down 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: cc-slide-down 0.22s var(--ease-out);
+  will-change: transform, opacity;
 }
 
 @keyframes cc-slide-down {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-12px) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cc-bar.cc-bar-exiting {
+  animation: cc-slide-up-exit 0.15s var(--ease-out) forwards;
+}
+
+@keyframes cc-slide-up-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
   }
 }
 
@@ -70,6 +90,7 @@
   gap: 5px;
   white-space: nowrap;
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .cc-currency-code {
@@ -92,13 +113,32 @@
   color: #18181b;
   cursor: pointer;
   outline: none;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms var(--ease-out);
   white-space: nowrap;
+  user-select: none;
 }
 
-.cc-btn:hover {
-  background: #f4f4f5;
-  border-color: #d4d4d8;
+.cc-btn-icon {
+  flex-shrink: 0;
+  color: #71717a;
+  transition: color 140ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cc-btn:hover {
+    background: #f4f4f5;
+    border-color: #d4d4d8;
+  }
+  .cc-btn:hover .cc-btn-icon {
+    color: #18181b;
+  }
+}
+
+.cc-btn:active {
+  transform: scale(0.96);
 }
 
 .cc-btn:focus-visible {
@@ -124,12 +164,19 @@
   color: #18181b;
   cursor: pointer;
   outline: none;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  font-variant-numeric: tabular-nums;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms var(--ease-out);
 }
 
-.cc-select:hover {
-  background: #f4f4f5;
-  border-color: #d4d4d8;
+@media (hover: hover) and (pointer: fine) {
+  .cc-select:hover {
+    background: #f4f4f5;
+    border-color: #d4d4d8;
+  }
+}
+
+.cc-select:active {
+  transform: scale(0.97);
 }
 
 .cc-select:focus-visible {
@@ -141,7 +188,8 @@
   position: absolute;
   right: 8px;
   pointer-events: none;
-  font-size: 9px;
+  display: inline-flex;
+  align-items: center;
   color: #71717a;
 }
 
@@ -156,15 +204,19 @@
   border-radius: 50%;
   color: #71717a;
   cursor: pointer;
-  font-size: 13px;
-  line-height: 1;
-  transition: background 0.15s ease, color 0.15s ease;
   outline: none;
+  transition: background-color 140ms ease, color 140ms ease, transform 140ms var(--ease-out);
 }
 
-.cc-btn-close:hover {
-  background: #f4f4f5;
-  color: #09090b;
+@media (hover: hover) and (pointer: fine) {
+  .cc-btn-close:hover {
+    background: #f4f4f5;
+    color: #09090b;
+  }
+}
+
+.cc-btn-close:active {
+  transform: scale(0.90);
 }
 
 .cc-btn-close:focus-visible {
@@ -177,22 +229,32 @@
   position: fixed;
   z-index: 2147483647;
   pointer-events: none;
-  background: #18181b;
+  background: rgba(24, 24, 27, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: #fafafa;
-  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
   padding: 8px 12px;
   font-size: 12px;
   line-height: 1.4;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.35), 0 2px 6px -1px rgba(0, 0, 0, 0.15);
   max-width: 280px;
   opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transform: translateY(4px) scale(0.96);
+  transform-origin: bottom center;
+  transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out);
+  font-variant-numeric: tabular-nums;
+  will-change: transform, opacity;
+}
+
+.cc-tooltip[data-instant] {
+  transition-duration: 0ms !important;
 }
 
 .cc-tooltip.visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
 }
 
 .cc-tooltip-title {
@@ -209,10 +271,10 @@
 /* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
   .cc-bar {
-    background: #18181b;
-    border-color: #27272a;
+    background: rgba(24, 24, 27, 0.90);
+    border-color: rgba(255, 255, 255, 0.12);
     color: #fafafa;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.5), 0 2px 6px -1px rgba(0, 0, 0, 0.25);
   }
 
   .cc-brand-badge {
@@ -233,9 +295,11 @@
     color: #fafafa;
   }
 
-  .cc-btn:hover, .cc-select:hover {
-    background: #27272a;
-    border-color: #3f3f46;
+  @media (hover: hover) and (pointer: fine) {
+    .cc-btn:hover, .cc-select:hover {
+      background: #27272a;
+      border-color: #3f3f46;
+    }
   }
 
   .cc-select-arrow {
@@ -246,13 +310,40 @@
     color: #a1a1aa;
   }
 
-  .cc-btn-close:hover {
-    background: #27272a;
-    color: #ffffff;
+  @media (hover: hover) and (pointer: fine) {
+    .cc-btn-close:hover {
+      background: #27272a;
+      color: #ffffff;
+    }
   }
 
   .cc-tooltip {
-    background: #27272a;
-    border: 1px solid #3f3f46;
+    background: rgba(24, 24, 27, 0.96);
+    border-color: rgba(255, 255, 255, 0.15);
   }
 }
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .cc-bar {
+    animation: none;
+  }
+
+  .cc-bar.cc-bar-exiting {
+    animation: none;
+    opacity: 0;
+  }
+
+  .cc-btn,
+  .cc-btn-close,
+  .cc-select {
+    transition: none;
+    transform: none !important;
+  }
+
+  .cc-tooltip {
+    transition: opacity 120ms ease;
+    transform: none !important;
+  }
+}
+
