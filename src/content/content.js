@@ -75,7 +75,11 @@ async function performConversion(options = {}) {
   const showInPageBar = options.showInPageBar !== undefined ? options.showInPageBar : (currentSettings?.showInPageBar !== false);
 
   // Fetch rates if not cached in memory
-  if (!globalRates || options.forceRefreshRates) {
+  if (options.ratesTable) {
+    globalRates = options.ratesTable;
+    rateDate = options.rateDate || rateDate;
+    rateProvider = options.provider || rateProvider;
+  } else if (!globalRates || options.forceRefreshRates) {
     try {
       const response = await sendMessage({ type: MSG.GET_RATES });
       if (response && response.rates) {
@@ -84,8 +88,14 @@ async function performConversion(options = {}) {
         rateProvider = response.provider;
       }
     } catch (err) {
-      console.warn('[CurrencyConverter] Could not fetch rates from background:', err.message);
-      return { success: false, error: err.message };
+      if (typeof window !== 'undefined' && window.mockRates) {
+        globalRates = window.mockRates;
+        rateDate = new Date().toISOString().split('T')[0];
+        rateProvider = 'ECB (Mock)';
+      } else {
+        console.warn('[CurrencyConverter] Could not fetch rates from background:', err.message);
+        return { success: false, error: err.message };
+      }
     }
   }
 
@@ -107,24 +117,36 @@ async function performConversion(options = {}) {
     rateDate,
     provider: rateProvider,
     onConvertedCountChange: (count) => {
+      if (currentUI) {
+        currentUI.update({ count });
+      }
       notifyBackgroundOfStatus();
     }
   });
 
   const convertedCount = currentScanner.convert();
-  currentScanner.startObserving();
-  isConverted = true;
+  isConverted = currentScanner.isConverted && convertedCount > 0;
 
-  // Mount UI bar if enabled
-  if (showInPageBar) {
+  if (isConverted) {
+    currentScanner.startObserving();
+  }
+
+  // Strict Pill Trigger Guard: Only mount/show Dynamic Island if actualConvertedCount > 0
+  if (showInPageBar && isConverted && convertedCount > 0) {
     if (!currentUI) {
       currentUI = new InPageUI({
         doc: document,
         targetCurrency,
+        isConverted: true,
+        convertedCount,
         rateDate,
         provider: rateProvider,
+        theme: currentSettings?.theme || 'system',
         onShowOriginal: () => {
           performRevert();
+        },
+        onConvert: (cur) => {
+          performConversion({ targetCurrency: cur });
         },
         onChangeCurrency: (newCur) => {
           performConversion({ targetCurrency: newCur });
@@ -132,7 +154,20 @@ async function performConversion(options = {}) {
       });
       currentUI.mount(uiCssText);
     } else {
-      currentUI.targetCurrency = targetCurrency;
+      currentUI.update({
+        isConverted: true,
+        targetCurrency,
+        count: convertedCount,
+        rateDate,
+        provider: rateProvider,
+        theme: currentSettings?.theme || 'system'
+      });
+      currentUI.show();
+    }
+  } else {
+    // If a scan finishes with 0 foreign conversions, do NOT show the pill.
+    if (currentUI) {
+      currentUI.hide();
     }
   }
 
@@ -146,6 +181,9 @@ function performRevert() {
     currentScanner.stopObserving();
   }
   isConverted = false;
+  if (currentUI) {
+    currentUI.update({ isConverted: false });
+  }
   notifyBackgroundOfStatus();
   return { success: true, count: 0 };
 }
@@ -167,6 +205,7 @@ document.addEventListener('mouseover', (e) => {
       convertedAmount: meta.convertedAmount,
       rate: meta.rate,
       date: meta.date,
+      targetElement: convertedEl,
       x: e.clientX,
       y: e.clientY
     });
@@ -244,4 +283,16 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeContentScript);
 } else {
   initializeContentScript();
+}
+
+// Standalone window message receiver for test rigs and headless verification
+if (typeof window !== 'undefined') {
+  window.addEventListener('message', (event) => {
+    if (!event.data || typeof event.data !== 'object') return;
+    if (event.data.type === 'CC_MANUAL_CONVERT') {
+      performConversion(event.data);
+    } else if (event.data.type === 'CC_MANUAL_REVERT') {
+      performRevert();
+    }
+  });
 }

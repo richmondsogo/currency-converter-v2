@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { JSDOM } from 'jsdom';
 import {
   detectCurrency,
   extractAmount,
   extractPrices,
-  parseNumberString
+  parseNumberString,
+  inferPageCurrency
 } from '../src/shared/parser.js';
 
 test('parser: v1 backwards-compatible detectCurrency', () => {
@@ -154,4 +156,37 @@ test('parser: price range detection', () => {
     assert.equal(range1[0].amount, 10);
     assert.equal(range1[1].amount, 20);
   }
+});
+
+test('parser: inferPageCurrency detects meta tags, ld+json, and caches on doc', () => {
+  // 1. og:price:currency meta tag
+  const dom1 = new JSDOM('<!DOCTYPE html><html><head><meta property="og:price:currency" content="CAD"></head><body></body></html>');
+  assert.equal(inferPageCurrency(dom1.window.document), 'CAD');
+  // Confirm cached
+  assert.equal(dom1.window.document.__cc_inferred_currency, 'CAD');
+
+  // 2. JSON-LD structured data
+  const dom2 = new JSDOM(`<!DOCTYPE html><html><head>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org/",
+        "@type": "Product",
+        "name": "Shoes",
+        "offers": {
+          "@type": "Offer",
+          "priceCurrency": "GBP",
+          "price": "75.00"
+        }
+      }
+    </script>
+  </head><body></body></html>`);
+  assert.equal(inferPageCurrency(dom2.window.document), 'GBP');
+
+  // 3. HTML lang heuristic
+  const dom3 = new JSDOM('<!DOCTYPE html><html lang="en-AU"><head></head><body></body></html>');
+  assert.equal(inferPageCurrency(dom3.window.document), 'AUD');
+
+  // 4. Fallback returns null when completely untagged
+  const dom4 = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>');
+  assert.equal(inferPageCurrency(dom4.window.document), null);
 });

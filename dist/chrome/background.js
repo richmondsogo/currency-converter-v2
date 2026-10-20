@@ -3005,6 +3005,7 @@
     }
     const {
       siteOverride,
+      pageContextISO,
       structuredHint,
       tld,
       htmlLang,
@@ -3012,6 +3013,9 @@
     } = context;
     if (siteOverride && config.candidates.includes(siteOverride.toUpperCase())) {
       return siteOverride.toUpperCase();
+    }
+    if (pageContextISO && config.candidates.includes(pageContextISO.toUpperCase())) {
+      return pageContextISO.toUpperCase();
     }
     if (structuredHint && config.candidates.includes(structuredHint.toUpperCase())) {
       return structuredHint.toUpperCase();
@@ -3136,7 +3140,7 @@
       }
     } else if (s.includes(",")) {
       const commaCount = (s.match(/,/g) || []).length;
-      if (commaCount === 1 && /,\d{1,2}$/.test(s)) {
+      if (commaCount === 1 && (/,\d{1,2}$/.test(s) || /^-?0,\d+$/.test(s))) {
         s = s.replace(",", ".");
       } else {
         s = s.replace(/,/g, "");
@@ -3172,6 +3176,7 @@
       }
     }
     if (context.siteOverride) return context.siteOverride.toUpperCase();
+    if (context.pageContextISO) return context.pageContextISO.toUpperCase();
     if (context.structuredHint) return context.structuredHint.toUpperCase();
     if (context.tld) {
       const tldCur = resolveAmbiguousSymbol("$", context);
