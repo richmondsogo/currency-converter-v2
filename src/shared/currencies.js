@@ -159,6 +159,7 @@ export function resolveAmbiguousSymbol(symbol, context = {}) {
 
   const {
     siteOverride,
+    pageContextISO,
     structuredHint,
     tld,
     htmlLang,
@@ -170,12 +171,17 @@ export function resolveAmbiguousSymbol(symbol, context = {}) {
     return siteOverride.toUpperCase();
   }
 
-  // 2. Structured page hints
+  // 2. Explicit page context ISO (from inferPageCurrency)
+  if (pageContextISO && config.candidates.includes(pageContextISO.toUpperCase())) {
+    return pageContextISO.toUpperCase();
+  }
+
+  // 3. Structured page hints
   if (structuredHint && config.candidates.includes(structuredHint.toUpperCase())) {
     return structuredHint.toUpperCase();
   }
 
-  // 3. TLD hints
+  // 4. TLD hints
   if (tld) {
     const tldCurrency = getCurrencyByTld(tld);
     if (tldCurrency && config.candidates.includes(tldCurrency)) {
@@ -183,7 +189,7 @@ export function resolveAmbiguousSymbol(symbol, context = {}) {
     }
   }
 
-  // 4. HTML lang region hints
+  // 5. HTML lang region hints
   if (htmlLang) {
     const langCurrency = getCurrencyByLang(htmlLang);
     if (langCurrency && config.candidates.includes(langCurrency)) {
@@ -191,12 +197,12 @@ export function resolveAmbiguousSymbol(symbol, context = {}) {
     }
   }
 
-  // 5. Global ambiguous setting (e.g. for '$')
+  // 6. Global ambiguous setting (e.g. for '$')
   if (symbol === '$' && ambiguousDollarSetting && config.candidates.includes(ambiguousDollarSetting.toUpperCase())) {
     return ambiguousDollarSetting.toUpperCase();
   }
 
-  // 6. Default fallback
+  // 7. Default fallback
   return config.default;
 }
 

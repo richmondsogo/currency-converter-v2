@@ -51,6 +51,16 @@ function openOptionsPage(e) {
 btnOpenOptions.addEventListener('click', openOptionsPage);
 linkOptions.addEventListener('click', openOptionsPage);
 
+function applyTheme(theme) {
+  if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  } else if (theme === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+}
+
 async function initPopup() {
   currentTab = await getActiveTab();
   allCurrenciesList = getAllCurrencies({ includeCrypto: false });
@@ -93,6 +103,7 @@ async function initPopup() {
     const settings = await sendMessage({ type: MSG.GET_SETTINGS });
     if (settings) {
       currentSettings = settings;
+      applyTheme(settings.theme);
       selectedTargetCurrency = settings.lastUsedTarget || settings.targetCurrency || 'USD';
       updateSelectedTargetUI(selectedTargetCurrency);
       initSiteRulesUI();
@@ -327,7 +338,19 @@ function createOptionItem(c) {
     const check = document.createElement('span');
     check.className = 'option-check-icon';
     check.setAttribute('aria-hidden', 'true');
-    check.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    const checkSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    checkSvg.setAttribute('width', '12');
+    checkSvg.setAttribute('height', '12');
+    checkSvg.setAttribute('viewBox', '0 0 24 24');
+    checkSvg.setAttribute('fill', 'none');
+    checkSvg.setAttribute('stroke', 'currentColor');
+    checkSvg.setAttribute('stroke-width', '2.5');
+    checkSvg.setAttribute('stroke-linecap', 'round');
+    checkSvg.setAttribute('stroke-linejoin', 'round');
+    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    poly.setAttribute('points', '20 6 9 17 4 12');
+    checkSvg.appendChild(poly);
+    check.appendChild(checkSvg);
     right.appendChild(check);
   }
 

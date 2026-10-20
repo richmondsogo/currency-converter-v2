@@ -298,3 +298,74 @@ test('scanner: no infinite observer loop when scanner mutates DOM', async () => 
   scanner.stopObserving();
 });
 
+test('scanner: Hard Bailout Gate — USD to USD leaves DOM 100% untouched and counts 0 conversions', () => {
+  const dom = new JSDOM('<!DOCTYPE html><html><head><meta property="og:price:currency" content="USD"></head><body><div id="shop"><p class="price">$100.00</p><p class="price">$250.00</p></div></body></html>');
+  const doc = dom.window.document;
+  const originalHtml = doc.body.innerHTML;
+
+  const scanner = new PageScanner({
+    doc,
+    targetCurrency: 'USD',
+    ratesTable: mockRates,
+    displayMode: 'replace'
+  });
+
+  const convertedCount = scanner.convert();
+
+  assert.equal(convertedCount, 0, 'USD -> USD must report 0 conversions');
+  assert.equal(scanner.isConverted, false, 'isConverted must be false on bailout');
+  assert.equal(doc.body.innerHTML, originalHtml, 'DOM must be 100% untouched when source === target');
+  assert.equal(doc.querySelectorAll('[data-cc-converted]').length, 0, 'No data-cc-converted elements should exist');
+});
+
+test('scanner: Canadian Dollar page context disambiguation converts bare $50.00 to USD', () => {
+  const dom = new JSDOM('<!DOCTYPE html><html><head><meta property="og:price:currency" content="CAD"></head><body><div id="shop"><p class="price">$50.00</p></div></body></html>');
+  const doc = dom.window.document;
+  const originalHtml = doc.body.innerHTML;
+
+  const scanner = new PageScanner({
+    doc,
+    targetCurrency: 'USD',
+    ratesTable: mockRates, // CAD: 1.50, USD: 1.10 -> 50 / 1.5 * 1.1 = 36.67 USD
+    displayMode: 'replace'
+  });
+
+  const convertedCount = scanner.convert();
+
+  assert.equal(convertedCount, 1, 'Must convert the bare $ price disambiguated as CAD');
+  assert.ok(scanner.isConverted, 'Scanner state is converted');
+  assert.ok(!doc.body.innerHTML.includes('$50.00'), 'Original $50.00 is replaced');
+  assert.ok(doc.body.innerHTML.includes('36.67'), 'Calculated CAD -> USD price is present');
+
+  // Revert restores original HTML
+  scanner.revert();
+  assert.equal(doc.body.innerHTML, originalHtml, 'Revert restores exact original HTML');
+});
+
+test('scanner: consecutive convert calls are strictly idempotent and do not duplicate spans', () => {
+  const dom = new JSDOM('<!DOCTYPE html><html><body><div id="shop"><p class="price">$50.00</p></div></body></html>');
+  const doc = dom.window.document;
+  const originalHtml = doc.body.innerHTML;
+
+  const scanner = new PageScanner({
+    doc,
+    targetCurrency: 'EUR',
+    ratesTable: mockRates,
+    displayMode: 'replace_highlight'
+  });
+
+  const count1 = scanner.convert();
+  assert.equal(count1, 1);
+  const convertedHtml1 = doc.body.innerHTML;
+
+  // Running convert a second time without reverting should not re-wrap or alter anything
+  const count2 = scanner.convert();
+  assert.equal(count2, 0, 'Subsequent convert on already converted nodes must convert 0 additional nodes');
+  assert.equal(doc.body.innerHTML, convertedHtml1, 'HTML must be identical on redundant convert');
+  assert.equal(doc.querySelectorAll('[data-cc-converted]').length, 1, 'Only one wrapper span exists');
+
+  // Revert still works cleanly
+  scanner.revert();
+  assert.equal(doc.body.innerHTML, originalHtml, 'Revert succeeds even after multiple convert passes');
+});
+

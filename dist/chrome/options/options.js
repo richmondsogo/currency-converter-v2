@@ -2493,10 +2493,127 @@
     });
   }
 
+  // src/shared/format.js
+  function formatCurrency(amount, currencyCode, options = {}) {
+    const code = (currencyCode || "USD").toUpperCase();
+    const meta = getCurrencyMeta(code);
+    const roundWhole = Boolean(options.roundWhole);
+    const locale = options.locale || "en-US";
+    const digits = roundWhole ? 0 : meta ? meta.digits : 2;
+    try {
+      const formatter = new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: code,
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits
+      });
+      return formatter.format(amount);
+    } catch {
+    }
+    let numFormatted;
+    try {
+      numFormatted = new Intl.NumberFormat(locale, {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits
+      }).format(amount);
+    } catch {
+      numFormatted = digits === 0 ? Math.round(amount).toString() : amount.toFixed(digits);
+    }
+    const symbol = meta ? meta.narrowSymbol || meta.symbol || code : code;
+    if (/^[^a-zA-Z0-9]$/.test(symbol)) {
+      return `${symbol}${numFormatted}`;
+    }
+    return `${numFormatted} ${code}`;
+  }
+  function formatPriceDisplay({ originalText, convertedText, displayMode = "replace" }) {
+    if (displayMode === "append") {
+      return {
+        text: `${originalText} (\u2248 ${convertedText})`,
+        highlight: false
+      };
+    }
+    if (displayMode === "replace_highlight") {
+      return {
+        text: convertedText,
+        highlight: true
+      };
+    }
+    return {
+      text: convertedText,
+      highlight: false
+    };
+  }
+
+  // src/shared/rates.js
+  var CACHE_TTL_MS = 6 * 60 * 60 * 1e3;
+  function calculateRate(from, to, ratesTable) {
+    if (!from || !to) throw new Error("Source and target currency codes are required.");
+    const f = from.toUpperCase();
+    const t = to.toUpperCase();
+    if (f === t) return 1;
+    if (!ratesTable) {
+      throw new Error("Rates table is empty or unavailable.");
+    }
+    const rateFrom = ratesTable[f];
+    const rateTo = ratesTable[t];
+    if (rateFrom == null || isNaN(rateFrom) || rateFrom <= 0) {
+      throw new Error(`Rate not available for source currency "${f}".`);
+    }
+    if (rateTo == null || isNaN(rateTo) || rateTo <= 0) {
+      throw new Error(`Rate not available for target currency "${t}".`);
+    }
+    return rateTo / rateFrom;
+  }
+  function convertAmount(amount, from, to, ratesTable) {
+    const rate = calculateRate(from, to, ratesTable);
+    return amount * rate;
+  }
+
   // src/options/options.js
   var api2 = getBrowser();
   var currentSettings = null;
   var toastTimeout = null;
+  var liveRates = null;
+  var FALLBACK_PREVIEW_RATES = {
+    EUR: 1,
+    USD: 1.09,
+    GBP: 0.86,
+    JPY: 165.2,
+    CAD: 1.48,
+    AUD: 1.64,
+    NGN: 1750,
+    INR: 91.5,
+    CHF: 0.96,
+    CNY: 7.92,
+    BRL: 5.95,
+    MXN: 21.8,
+    SGD: 1.45,
+    HKD: 8.52,
+    KRW: 1510,
+    ZAR: 19.8,
+    SEK: 11.4,
+    NOK: 11.8,
+    DKK: 7.46,
+    NZD: 1.82,
+    TRY: 37.2,
+    RUB: 105,
+    PLN: 4.32,
+    CZK: 25.1,
+    HUF: 395,
+    ILS: 4.12,
+    AED: 4,
+    SAR: 4.09,
+    THB: 39.8,
+    VND: 27500,
+    PHP: 62.5,
+    MYR: 5.12,
+    IDR: 17200,
+    BTC: 12e-6,
+    ETH: 38e-5,
+    SOL: 65e-4,
+    DOGE: 8.5
+  };
+  var SUGGESTED_PINNED = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "NGN", "INR"];
   var selectDefaultTarget = document.getElementById("default-target-currency");
   var selectDisplayMode = document.getElementById("display-mode");
   var selectAmbiguousDollar = document.getElementById("ambiguous-dollar");
@@ -2506,12 +2623,38 @@
   var checkShowCrypto = document.getElementById("check-show-crypto");
   var checkAutoConvertAll = document.getElementById("check-autoconvert-all");
   var pinnedChipsContainer = document.getElementById("pinned-chips-container");
+  var quickSuggestButtons = document.getElementById("quick-suggest-buttons");
   var selectAddPinned = document.getElementById("select-add-pinned");
   var rulesTableBody = document.getElementById("rules-table-body");
+  var formAddRule = document.getElementById("form-add-rule");
+  var inputRuleDomain = document.getElementById("input-rule-domain");
+  var selectRuleBehavior = document.getElementById("select-rule-behavior");
+  var selectRuleCurrency = document.getElementById("select-rule-currency");
+  var inputSearchRules = document.getElementById("input-search-rules");
   var btnReset = document.getElementById("btn-reset");
   var btnExport = document.getElementById("btn-export-settings");
   var inputImport = document.getElementById("input-import-settings");
   var saveToast = document.getElementById("save-toast");
+  var previewRenderedPrice = document.getElementById("preview-rendered-price");
+  var previewSimulatedTooltip = document.getElementById("preview-simulated-tooltip");
+  var previewTooltipRateText = document.getElementById("preview-tooltip-rate-text");
+  function applyTheme(theme) {
+    if (theme === "dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    } else if (theme === "light") {
+      document.documentElement.setAttribute("data-theme", "light");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+    const buttons = document.querySelectorAll(".theme-btn");
+    buttons.forEach((btn) => {
+      const val = btn.getAttribute("data-theme-val");
+      btn.classList.toggle("active", val === (theme || "system"));
+    });
+    if (selectTheme && selectTheme.value !== theme) {
+      selectTheme.value = theme || "system";
+    }
+  }
   function showSaveToast(message = "Preferences saved") {
     if (toastTimeout) clearTimeout(toastTimeout);
     const textEl = saveToast.querySelector(".toast-text");
@@ -2529,37 +2672,69 @@
     try {
       currentSettings = await sendMessage({ type: MSG.GET_SETTINGS });
       if (!currentSettings) throw new Error("No settings returned");
-      renderUI();
     } catch (err) {
       console.warn("[Options] Using default settings fallback:", err);
-      currentSettings = {
-        targetCurrency: "USD",
-        pinnedCurrencies: ["NGN", "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "INR"],
-        displayMode: "replace",
-        roundWhole: false,
-        ambiguousDollar: "USD",
-        showCrypto: false,
-        showInPageBar: true,
-        autoConvertAll: false,
-        theme: "system",
-        perSite: {}
-      };
-      renderUI();
+      try {
+        const stored = localStorage.getItem("cc_settings_dev_fallback");
+        if (stored) {
+          currentSettings = JSON.parse(stored);
+        }
+      } catch {
+      }
+      if (!currentSettings) {
+        currentSettings = {
+          targetCurrency: "USD",
+          pinnedCurrencies: ["NGN", "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "INR"],
+          displayMode: "replace",
+          roundWhole: false,
+          ambiguousDollar: "USD",
+          showCrypto: false,
+          showInPageBar: true,
+          autoConvertAll: false,
+          theme: "system",
+          perSite: {}
+        };
+      }
     }
+    try {
+      const ratesRes = await sendMessage({ type: MSG.GET_RATES });
+      if (ratesRes && ratesRes.rates) {
+        liveRates = ratesRes.rates;
+      }
+    } catch {
+      liveRates = FALLBACK_PREVIEW_RATES;
+    }
+    if (!liveRates) liveRates = FALLBACK_PREVIEW_RATES;
+    applyTheme(currentSettings.theme);
+    renderUI();
+    updateLivePreview();
   }
   function renderUI() {
     if (!currentSettings) return;
     const showCrypto = Boolean(currentSettings.showCrypto);
     const allCurrencies = getAllCurrencies({ includeCrypto: showCrypto });
-    selectDefaultTarget.replaceChildren();
-    for (const c of allCurrencies) {
-      const opt = document.createElement("option");
-      opt.value = c.code;
-      opt.textContent = `${c.code} (${c.symbol}) \u2014 ${c.name}`;
-      if (c.code === currentSettings.targetCurrency) {
-        opt.selected = true;
+    if (selectDefaultTarget.options.length !== allCurrencies.length) {
+      selectDefaultTarget.replaceChildren();
+      for (const c of allCurrencies) {
+        const opt = document.createElement("option");
+        opt.value = c.code;
+        opt.textContent = `${c.code} (${c.symbol}) \u2014 ${c.name}`;
+        selectDefaultTarget.appendChild(opt);
       }
-      selectDefaultTarget.appendChild(opt);
+    }
+    selectDefaultTarget.value = currentSettings.targetCurrency;
+    if (selectRuleCurrency.options.length !== allCurrencies.length + 1) {
+      selectRuleCurrency.replaceChildren();
+      const autoDetectOpt = document.createElement("option");
+      autoDetectOpt.value = "";
+      autoDetectOpt.textContent = "Auto-detect currency";
+      selectRuleCurrency.appendChild(autoDetectOpt);
+      for (const c of allCurrencies) {
+        const opt = document.createElement("option");
+        opt.value = c.code;
+        opt.textContent = `${c.code} (${c.symbol}) \u2014 ${c.name}`;
+        selectRuleCurrency.appendChild(opt);
+      }
     }
     selectDisplayMode.value = currentSettings.displayMode || "replace";
     selectAmbiguousDollar.value = currentSettings.ambiguousDollar || "USD";
@@ -2577,35 +2752,62 @@
     const countBadge = document.getElementById("pinned-count-badge");
     if (countBadge) {
       countBadge.textContent = `${pinned.length} / 8`;
+      countBadge.classList.toggle("badge-full", pinned.length >= 8);
     }
-    for (const code of pinned) {
-      const meta = getCurrencyMeta(code);
-      const chip = document.createElement("div");
-      chip.className = "currency-chip";
-      const codeSpan = document.createElement("span");
-      codeSpan.className = "chip-code";
-      codeSpan.textContent = code;
-      chip.appendChild(codeSpan);
-      if (meta && meta.symbol) {
-        const symSpan = document.createElement("span");
-        symSpan.className = "chip-symbol";
-        symSpan.textContent = meta.symbol;
-        chip.appendChild(symSpan);
+    if (pinned.length === 0) {
+      const tmplEmpty = document.getElementById("template-empty-pinned");
+      if (tmplEmpty) {
+        pinnedChipsContainer.appendChild(tmplEmpty.content.cloneNode(true));
       }
-      const btnRemove = document.createElement("button");
-      btnRemove.className = "chip-remove-btn";
-      btnRemove.setAttribute("type", "button");
-      btnRemove.setAttribute("aria-label", `Remove ${code} from pinned`);
-      const tmplChipIcon = document.getElementById("template-chip-remove-icon");
-      if (tmplChipIcon) {
-        btnRemove.appendChild(tmplChipIcon.content.cloneNode(true));
+    } else {
+      for (const code of pinned) {
+        const meta = getCurrencyMeta(code);
+        const chip = document.createElement("div");
+        chip.className = "currency-chip";
+        const codeSpan = document.createElement("span");
+        codeSpan.className = "chip-code";
+        codeSpan.textContent = code;
+        chip.appendChild(codeSpan);
+        if (meta && meta.symbol) {
+          const symSpan = document.createElement("span");
+          symSpan.className = "chip-symbol";
+          symSpan.textContent = meta.symbol;
+          chip.appendChild(symSpan);
+        }
+        const btnRemove = document.createElement("button");
+        btnRemove.className = "chip-remove-btn";
+        btnRemove.setAttribute("type", "button");
+        btnRemove.setAttribute("aria-label", `Remove ${code} from pinned`);
+        const tmplChipIcon = document.getElementById("template-chip-remove-icon");
+        if (tmplChipIcon) {
+          btnRemove.appendChild(tmplChipIcon.content.cloneNode(true));
+        }
+        btnRemove.addEventListener("click", async () => {
+          chip.classList.add("chip-exiting");
+          setTimeout(async () => {
+            const updated = pinned.filter((c) => c !== code);
+            await savePartialSettings({ pinnedCurrencies: updated });
+          }, 120);
+        });
+        chip.appendChild(btnRemove);
+        pinnedChipsContainer.appendChild(chip);
       }
-      btnRemove.addEventListener("click", async () => {
-        const updated = pinned.filter((c) => c !== code);
-        await savePartialSettings({ pinnedCurrencies: updated });
-      });
-      chip.appendChild(btnRemove);
-      pinnedChipsContainer.appendChild(chip);
+    }
+    quickSuggestButtons.replaceChildren();
+    for (const sCode of SUGGESTED_PINNED) {
+      if (!pinned.includes(sCode)) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "quick-suggest-btn";
+        btn.textContent = `+ ${sCode}`;
+        btn.disabled = pinned.length >= 8;
+        btn.addEventListener("click", async () => {
+          if (pinned.length < 8 && !pinned.includes(sCode)) {
+            await savePartialSettings({ pinnedCurrencies: [...pinned, sCode] });
+          }
+        });
+        quickSuggestButtons.appendChild(btn);
+      }
     }
     selectAddPinned.replaceChildren();
     const placeholderOpt = document.createElement("option");
@@ -2629,10 +2831,15 @@
   function renderRulesTable() {
     rulesTableBody.replaceChildren();
     const perSite = currentSettings.perSite || {};
-    const entries = Object.entries(perSite);
+    const filterQuery = (inputSearchRules?.value || "").trim().toLowerCase();
+    let entries = Object.entries(perSite);
+    if (filterQuery) {
+      entries = entries.filter(([host]) => host.toLowerCase().includes(filterQuery));
+    }
     const rulesCountBadge = document.getElementById("rules-count-badge");
     if (rulesCountBadge) {
-      rulesCountBadge.textContent = `${entries.length} ${entries.length === 1 ? "rule" : "rules"}`;
+      const totalCount = Object.keys(perSite).length;
+      rulesCountBadge.textContent = `${totalCount} ${totalCount === 1 ? "rule" : "rules"}`;
     }
     if (entries.length === 0) {
       const tmplEmpty = document.getElementById("template-empty-rules");
@@ -2668,7 +2875,9 @@
         badge.appendChild(badgeText);
       } else {
         badge.className = "badge-tag badge-default";
-        badge.textContent = "Default";
+        badgeText.textContent = "Default";
+        badge.appendChild(dot);
+        badge.appendChild(badgeText);
       }
       tdBehavior.appendChild(badge);
       tr.appendChild(tdBehavior);
@@ -2690,13 +2899,56 @@
       delLabel.textContent = "Remove";
       btnDelete.appendChild(delLabel);
       btnDelete.addEventListener("click", async () => {
-        const updatedPerSite = { ...perSite };
-        delete updatedPerSite[hostname];
-        await savePartialSettings({ perSite: updatedPerSite });
+        tr.style.opacity = "0";
+        tr.style.transform = "translateX(10px)";
+        tr.style.transition = "all 140ms ease";
+        setTimeout(async () => {
+          const updatedPerSite = { ...currentSettings.perSite };
+          delete updatedPerSite[hostname];
+          await savePartialSettings({ perSite: updatedPerSite });
+          showSaveToast(`Rule for ${hostname} removed`);
+        }, 140);
       });
       tdAction.appendChild(btnDelete);
       tr.appendChild(tdAction);
       rulesTableBody.appendChild(tr);
+    }
+  }
+  function updateLivePreview() {
+    if (!previewRenderedPrice || !currentSettings) return;
+    const sampleAmount = 1299.99;
+    const sampleOriginalCurrency = "USD";
+    const targetCurrency = currentSettings.targetCurrency || "USD";
+    const displayMode = currentSettings.displayMode || "replace";
+    const roundWhole = Boolean(currentSettings.roundWhole);
+    const ratesTable = liveRates || FALLBACK_PREVIEW_RATES;
+    let convertedAmount = sampleAmount;
+    let rate = 1;
+    try {
+      rate = calculateRate(sampleOriginalCurrency, targetCurrency, ratesTable);
+      convertedAmount = convertAmount(sampleAmount, sampleOriginalCurrency, targetCurrency, ratesTable);
+    } catch (err) {
+      rate = 1;
+      convertedAmount = sampleAmount;
+    }
+    const formattedConverted = formatCurrency(convertedAmount, targetCurrency, { roundWhole });
+    const display = formatPriceDisplay({
+      originalText: `$1,299.99`,
+      convertedText: formattedConverted,
+      displayMode
+    });
+    previewRenderedPrice.replaceChildren();
+    if (display.highlight) {
+      const mark = document.createElement("mark");
+      mark.className = "cc-price-highlight";
+      mark.textContent = display.text;
+      previewRenderedPrice.appendChild(mark);
+    } else {
+      previewRenderedPrice.textContent = display.text;
+    }
+    if (previewTooltipRateText) {
+      const formattedUnit = rate.toFixed(4);
+      previewTooltipRateText.textContent = `1 ${sampleOriginalCurrency} = ${formattedUnit} ${targetCurrency} \xB7 Live Rates`;
     }
   }
   async function savePartialSettings(partial) {
@@ -2708,15 +2960,28 @@
       if (res && res.settings) {
         currentSettings = res.settings;
         renderUI();
+        updateLivePreview();
         showSaveToast();
+        return;
       }
     } catch (err) {
-      console.error("[Options] Failed to update settings:", err);
+      console.warn("[Options] Storage update fallback:", err);
     }
+    currentSettings = {
+      ...currentSettings,
+      ...partial
+    };
+    try {
+      localStorage.setItem("cc_settings_dev_fallback", JSON.stringify(currentSettings));
+    } catch {
+    }
+    renderUI();
+    updateLivePreview();
+    showSaveToast();
   }
   function setupNavigation() {
     const navPills = document.querySelectorAll(".nav-pill");
-    const sections = ["section-general", "section-pinned", "section-automation", "section-backup"].map((id) => document.getElementById(id)).filter(Boolean);
+    const sections = ["section-preview", "section-general", "section-pinned", "section-automation", "section-backup"].map((id) => document.getElementById(id)).filter(Boolean);
     navPills.forEach((pill) => {
       pill.addEventListener("click", (e) => {
         e.preventDefault();
@@ -2743,26 +3008,42 @@
           }
         });
       }, {
-        rootMargin: "-20% 0px -70% 0px",
+        rootMargin: "-15% 0px -65% 0px",
         threshold: 0
       });
       sections.forEach((sec) => observer.observe(sec));
     }
   }
   function setupEventListeners() {
+    const themeButtons = document.querySelectorAll(".theme-btn");
+    themeButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const chosenTheme = btn.getAttribute("data-theme-val");
+        applyTheme(chosenTheme);
+        savePartialSettings({ theme: chosenTheme });
+      });
+    });
     selectDefaultTarget.addEventListener("change", (e) => {
+      if (currentSettings) currentSettings.targetCurrency = e.target.value;
+      updateLivePreview();
       savePartialSettings({ targetCurrency: e.target.value });
     });
     selectDisplayMode.addEventListener("change", (e) => {
+      if (currentSettings) currentSettings.displayMode = e.target.value;
+      updateLivePreview();
       savePartialSettings({ displayMode: e.target.value });
     });
     selectAmbiguousDollar.addEventListener("change", (e) => {
+      if (currentSettings) currentSettings.ambiguousDollar = e.target.value;
       savePartialSettings({ ambiguousDollar: e.target.value });
     });
     selectTheme.addEventListener("change", (e) => {
+      applyTheme(e.target.value);
       savePartialSettings({ theme: e.target.value });
     });
     checkRoundWhole.addEventListener("change", (e) => {
+      if (currentSettings) currentSettings.roundWhole = e.target.checked;
+      updateLivePreview();
       savePartialSettings({ roundWhole: e.target.checked });
     });
     checkShowInPageBar.addEventListener("change", (e) => {
@@ -2799,29 +3080,63 @@
       if (pinned.length < 8 && !pinned.includes(val)) {
         savePartialSettings({ pinnedCurrencies: [...pinned, val] });
       }
+      e.target.value = "";
     });
+    if (formAddRule) {
+      formAddRule.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        let domain = (inputRuleDomain.value || "").trim().toLowerCase();
+        domain = domain.replace(/^(?:https?:\/\/)?(?:www\.)?/i, "").split("/")[0];
+        if (!domain || !domain.includes(".")) {
+          alert("Please enter a valid domain name (e.g. amazon.de or asos.com)");
+          return;
+        }
+        const behavior = selectRuleBehavior.value;
+        const assumedCurrency = selectRuleCurrency.value;
+        const ruleObj = {
+          autoConvert: behavior === "always",
+          neverConvert: behavior === "never",
+          assumedCurrency: assumedCurrency || void 0
+        };
+        const updatedPerSite = {
+          ...currentSettings.perSite || {},
+          [domain]: ruleObj
+        };
+        await savePartialSettings({ perSite: updatedPerSite });
+        inputRuleDomain.value = "";
+        showSaveToast(`Rule for ${domain} saved`);
+      });
+    }
+    if (inputSearchRules) {
+      inputSearchRules.addEventListener("input", () => {
+        renderRulesTable();
+      });
+    }
+    if (previewRenderedPrice && previewSimulatedTooltip) {
+      previewRenderedPrice.addEventListener("mouseenter", () => {
+        previewSimulatedTooltip.classList.add("visible");
+      });
+      previewRenderedPrice.addEventListener("mouseleave", () => {
+        previewSimulatedTooltip.classList.remove("visible");
+      });
+    }
     btnReset.addEventListener("click", async () => {
       if (confirm("Reset all Currency Convertr preferences to default settings?")) {
-        const res = await sendMessage({
-          type: MSG.UPDATE_SETTINGS,
-          payload: {
-            targetCurrency: "USD",
-            pinnedCurrencies: ["NGN", "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "INR"],
-            displayMode: "replace",
-            roundWhole: false,
-            ambiguousDollar: "USD",
-            showCrypto: false,
-            showInPageBar: true,
-            autoConvertAll: false,
-            theme: "system",
-            perSite: {}
-          }
-        });
-        if (res && res.settings) {
-          currentSettings = res.settings;
-          renderUI();
-          showSaveToast("Settings reset to defaults");
-        }
+        const defaults = {
+          targetCurrency: "USD",
+          pinnedCurrencies: ["NGN", "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "INR"],
+          displayMode: "replace",
+          roundWhole: false,
+          ambiguousDollar: "USD",
+          showCrypto: false,
+          showInPageBar: true,
+          autoConvertAll: false,
+          theme: "system",
+          perSite: {}
+        };
+        await savePartialSettings(defaults);
+        applyTheme("system");
+        showSaveToast("Settings reset to defaults");
       }
     });
     btnExport.addEventListener("click", () => {
@@ -2833,6 +3148,7 @@
       a.download = `currency-convertr-settings-${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
+      showSaveToast("Settings exported");
     });
     inputImport.addEventListener("change", (e) => {
       const file = e.target.files && e.target.files[0];
@@ -2841,15 +3157,11 @@
       reader.onload = async (event) => {
         try {
           const parsed = JSON.parse(event.target.result);
-          const res = await sendMessage({
-            type: MSG.UPDATE_SETTINGS,
-            payload: parsed
-          });
-          if (res && res.settings) {
-            currentSettings = res.settings;
-            renderUI();
-            showSaveToast("Settings imported successfully");
+          if (typeof parsed !== "object" || parsed === null) {
+            throw new Error("JSON content must be an object");
           }
+          await savePartialSettings(parsed);
+          showSaveToast("Settings imported successfully");
         } catch (err) {
           alert("Invalid JSON file format: " + err.message);
         }

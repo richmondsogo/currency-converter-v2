@@ -100,8 +100,8 @@ export function parseNumberString(rawNum, multiplier = 1) {
   } else if (s.includes(',')) {
     // Only comma
     const commaCount = (s.match(/,/g) || []).length;
-    if (commaCount === 1 && /,\d{1,2}$/.test(s)) {
-      // e.g. 149,50 or 15,5
+    if (commaCount === 1 && (/,\d{1,2}$/.test(s) || /^-?0,\d+$/.test(s))) {
+      // e.g. 149,50 or 15,5 or 0,500
       s = s.replace(',', '.');
     } else {
       // e.g. 1,500 or 1,000,000
@@ -121,6 +121,83 @@ export function parseNumberString(rawNum, multiplier = 1) {
 
   const result = n * (multiplier || 1);
   return result;
+}
+
+const _pageCurrencyCache = new WeakMap();
+
+/**
+ * Determines the page's native currency before resolving ambiguous symbols:
+ * 1. Meta tags (og:price:currency, product:price:currency, itemprop)
+ * 2. JSON-LD scripts ("priceCurrency": "...")
+ * 3. TLD & <html lang> heuristics (.ca -> CAD, .au -> AUD, .nz -> NZD, .sg -> SGD, .hk -> HKD, .uk -> GBP, .ng -> NGN, .jp -> JPY)
+ */
+export function inferPageCurrency(doc) {
+  if (!doc) return null;
+  if (_pageCurrencyCache.has(doc)) {
+    return _pageCurrencyCache.get(doc);
+  }
+
+  let inferred = null;
+
+  // 1. Meta tags
+  try {
+    const meta = doc.querySelector(
+      'meta[property="og:price:currency"], meta[property="product:price:currency"], meta[itemprop="priceCurrency"], [itemprop="priceCurrency"]'
+    );
+    if (meta) {
+      const val = meta.getAttribute('content') || meta.textContent;
+      if (val && /^[A-Za-z]{3}$/.test(val.trim())) {
+        inferred = val.trim().toUpperCase();
+      }
+    }
+  } catch {}
+
+  // 2. JSON-LD scripts
+  if (!inferred) {
+    try {
+      const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+      for (const s of scripts) {
+        const txt = s.textContent;
+        if (txt && txt.includes('priceCurrency')) {
+          const match = txt.match(/"priceCurrency"\s*:\s*"([A-Za-z]{3})"/i);
+          if (match) {
+            inferred = match[1].toUpperCase();
+            break;
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // 3. TLD & <html lang> heuristics
+  if (!inferred) {
+    const hostname = (doc.location && doc.location.hostname) ? doc.location.hostname.toLowerCase() : '';
+    const lang = (doc.documentElement && doc.documentElement.lang) ? doc.documentElement.lang.trim().toLowerCase() : '';
+
+    if (hostname.endsWith('.ca') || lang === 'en-ca' || lang === 'fr-ca' || lang.startsWith('en-ca') || lang.startsWith('fr-ca')) {
+      inferred = 'CAD';
+    } else if (hostname.endsWith('.com.au') || hostname.endsWith('.au') || lang === 'en-au' || lang.startsWith('en-au')) {
+      inferred = 'AUD';
+    } else if (hostname.endsWith('.co.nz') || hostname.endsWith('.nz') || lang === 'en-nz' || lang.startsWith('en-nz')) {
+      inferred = 'NZD';
+    } else if (hostname.endsWith('.sg') || lang === 'en-sg' || lang.startsWith('en-sg')) {
+      inferred = 'SGD';
+    } else if (hostname.endsWith('.hk') || lang === 'zh-hk' || lang.startsWith('zh-hk')) {
+      inferred = 'HKD';
+    } else if (hostname.endsWith('.co.uk') || hostname.endsWith('.uk') || lang === 'en-gb' || lang.startsWith('en-gb')) {
+      inferred = 'GBP';
+    } else if (hostname.endsWith('.ng') || lang === 'en-ng' || lang.startsWith('en-ng')) {
+      inferred = 'NGN';
+    } else if (hostname.endsWith('.jp') || lang === 'ja' || lang.startsWith('ja')) {
+      inferred = 'JPY';
+    }
+  }
+
+  _pageCurrencyCache.set(doc, inferred);
+  try {
+    doc.__cc_inferred_currency = inferred;
+  } catch {}
+  return inferred;
 }
 
 /**
@@ -152,8 +229,9 @@ export function detectCurrency(text, context = {}) {
     }
   }
 
-  // 4. If no symbol or code is found, check structured hint or site override or TLD
+  // 4. If no symbol or code is found, check structured hint or site override or pageContextISO or TLD
   if (context.siteOverride) return context.siteOverride.toUpperCase();
+  if (context.pageContextISO) return context.pageContextISO.toUpperCase();
   if (context.structuredHint) return context.structuredHint.toUpperCase();
   if (context.tld) {
     const tldCur = resolveAmbiguousSymbol('$', context);

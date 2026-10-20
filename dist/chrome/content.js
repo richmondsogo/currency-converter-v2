@@ -2701,6 +2701,7 @@
     }
     const {
       siteOverride,
+      pageContextISO,
       structuredHint,
       tld,
       htmlLang,
@@ -2708,6 +2709,9 @@
     } = context;
     if (siteOverride && config.candidates.includes(siteOverride.toUpperCase())) {
       return siteOverride.toUpperCase();
+    }
+    if (pageContextISO && config.candidates.includes(pageContextISO.toUpperCase())) {
+      return pageContextISO.toUpperCase();
     }
     if (structuredHint && config.candidates.includes(structuredHint.toUpperCase())) {
       return structuredHint.toUpperCase();
@@ -2799,7 +2803,7 @@
       }
     } else if (s.includes(",")) {
       const commaCount = (s.match(/,/g) || []).length;
-      if (commaCount === 1 && /,\d{1,2}$/.test(s)) {
+      if (commaCount === 1 && (/,\d{1,2}$/.test(s) || /^-?0,\d+$/.test(s))) {
         s = s.replace(",", ".");
       } else {
         s = s.replace(/,/g, "");
@@ -2814,6 +2818,69 @@
     if (isNaN(n)) return null;
     const result = n * (multiplier || 1);
     return result;
+  }
+  var _pageCurrencyCache = /* @__PURE__ */ new WeakMap();
+  function inferPageCurrency(doc) {
+    if (!doc) return null;
+    if (_pageCurrencyCache.has(doc)) {
+      return _pageCurrencyCache.get(doc);
+    }
+    let inferred = null;
+    try {
+      const meta = doc.querySelector(
+        'meta[property="og:price:currency"], meta[property="product:price:currency"], meta[itemprop="priceCurrency"], [itemprop="priceCurrency"]'
+      );
+      if (meta) {
+        const val = meta.getAttribute("content") || meta.textContent;
+        if (val && /^[A-Za-z]{3}$/.test(val.trim())) {
+          inferred = val.trim().toUpperCase();
+        }
+      }
+    } catch {
+    }
+    if (!inferred) {
+      try {
+        const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+        for (const s of scripts) {
+          const txt = s.textContent;
+          if (txt && txt.includes("priceCurrency")) {
+            const match = txt.match(/"priceCurrency"\s*:\s*"([A-Za-z]{3})"/i);
+            if (match) {
+              inferred = match[1].toUpperCase();
+              break;
+            }
+          }
+        }
+      } catch {
+      }
+    }
+    if (!inferred) {
+      const hostname = doc.location && doc.location.hostname ? doc.location.hostname.toLowerCase() : "";
+      const lang = doc.documentElement && doc.documentElement.lang ? doc.documentElement.lang.trim().toLowerCase() : "";
+      if (hostname.endsWith(".ca") || lang === "en-ca" || lang === "fr-ca" || lang.startsWith("en-ca") || lang.startsWith("fr-ca")) {
+        inferred = "CAD";
+      } else if (hostname.endsWith(".com.au") || hostname.endsWith(".au") || lang === "en-au" || lang.startsWith("en-au")) {
+        inferred = "AUD";
+      } else if (hostname.endsWith(".co.nz") || hostname.endsWith(".nz") || lang === "en-nz" || lang.startsWith("en-nz")) {
+        inferred = "NZD";
+      } else if (hostname.endsWith(".sg") || lang === "en-sg" || lang.startsWith("en-sg")) {
+        inferred = "SGD";
+      } else if (hostname.endsWith(".hk") || lang === "zh-hk" || lang.startsWith("zh-hk")) {
+        inferred = "HKD";
+      } else if (hostname.endsWith(".co.uk") || hostname.endsWith(".uk") || lang === "en-gb" || lang.startsWith("en-gb")) {
+        inferred = "GBP";
+      } else if (hostname.endsWith(".ng") || lang === "en-ng" || lang.startsWith("en-ng")) {
+        inferred = "NGN";
+      } else if (hostname.endsWith(".jp") || lang === "ja" || lang.startsWith("ja")) {
+        inferred = "JPY";
+      }
+    }
+    _pageCurrencyCache.set(doc, inferred);
+    try {
+      doc.__cc_inferred_currency = inferred;
+    } catch {
+    }
+    return inferred;
   }
   function detectCurrency(text, context = {}) {
     if (!text) return "USD";
@@ -2835,6 +2902,7 @@
       }
     }
     if (context.siteOverride) return context.siteOverride.toUpperCase();
+    if (context.pageContextISO) return context.pageContextISO.toUpperCase();
     if (context.structuredHint) return context.structuredHint.toUpperCase();
     if (context.tld) {
       const tldCur = resolveAmbiguousSymbol("$", context);
@@ -3026,9 +3094,12 @@
     "svg",
     "canvas",
     "[contenteditable]",
+    '[contenteditable="true"]',
     "[data-cc-ignore]",
+    "#cc-dynamic-island-host",
     "#currency-convertr-root",
-    ".currency-convertr-ui"
+    ".currency-convertr-ui",
+    '[data-cc-converted="true"]'
   ].join(", ");
   var PageScanner = class {
     constructor({
@@ -3066,6 +3137,13 @@
     }
     _initializePageContext() {
       if (!this.doc) return;
+      const inferred = inferPageCurrency(this.doc);
+      if (inferred && !this.context.pageContextISO) {
+        this.context.pageContextISO = inferred;
+      }
+      if (inferred && !this.context.structuredHint) {
+        this.context.structuredHint = inferred;
+      }
       if (!this.context.tld && this.doc.location && this.doc.location.hostname) {
         this.context.tld = this.doc.location.hostname;
       }
@@ -3153,7 +3231,7 @@
         this.isMutatingOwnDOM = false;
       }
       this.convertedCount += newConversions;
-      this.isConverted = true;
+      this.isConverted = this.convertedCount > 0;
       if (this.onConvertedCountChange && newConversions > 0) {
         this.onConvertedCountChange(this.convertedCount);
       }
@@ -3197,6 +3275,11 @@
         if (text.length === 0 || text.length > 50 || !/\d/.test(text)) continue;
         const prices = extractPrices(text, this.context);
         if (prices.length !== 1) continue;
+        const sourceISO = prices[0].currency ? prices[0].currency.toUpperCase() : null;
+        const targetISO = this.targetCurrency ? this.targetCurrency.toUpperCase() : "USD";
+        if (!sourceISO || sourceISO === targetISO) {
+          continue;
+        }
         const walker = this.doc.createTreeWalker(el, 4);
         let tNode;
         let hasFullChild = false;
@@ -3222,12 +3305,16 @@
       const prices = extractPrices(rawText, this.context);
       if (prices.length !== 1) return false;
       const price = prices[0];
-      if (price.currency === this.targetCurrency) return false;
+      const sourceISO = price.currency ? price.currency.toUpperCase() : null;
+      const targetISO = this.targetCurrency ? this.targetCurrency.toUpperCase() : "USD";
+      if (!sourceISO || sourceISO === targetISO) {
+        return false;
+      }
       let convertedAmount;
       let rateUsed;
       try {
-        rateUsed = calculateRate(price.currency, this.targetCurrency, this.ratesTable);
-        convertedAmount = convertAmount(price.amount, price.currency, this.targetCurrency, this.ratesTable);
+        rateUsed = calculateRate(sourceISO, targetISO, this.ratesTable);
+        convertedAmount = convertAmount(price.amount, sourceISO, targetISO, this.ratesTable);
       } catch {
         return false;
       }
@@ -3274,7 +3361,11 @@
       if (!originalText || !/\d/.test(originalText)) return false;
       const prices = extractPrices(originalText, this.context);
       if (prices.length === 0) return false;
-      const validPrices = prices.filter((p) => p.currency !== this.targetCurrency);
+      const targetISO = this.targetCurrency ? this.targetCurrency.toUpperCase() : "USD";
+      const validPrices = prices.filter((p) => {
+        const sourceISO = p.currency ? p.currency.toUpperCase() : null;
+        return sourceISO && sourceISO !== targetISO;
+      });
       if (validPrices.length === 0) return false;
       this.textOriginalData.set(textNode, originalText);
       this.convertedTextNodes.add(textNode);
@@ -3283,11 +3374,12 @@
         const frag = this.doc.createDocumentFragment();
         let lastIndex = 0;
         for (const p of validPrices) {
+          const sourceISO = p.currency ? p.currency.toUpperCase() : null;
           let convertedAmount;
           let rateUsed;
           try {
-            rateUsed = calculateRate(p.currency, this.targetCurrency, this.ratesTable);
-            convertedAmount = convertAmount(p.amount, p.currency, this.targetCurrency, this.ratesTable);
+            rateUsed = calculateRate(sourceISO, targetISO, this.ratesTable);
+            convertedAmount = convertAmount(p.amount, sourceISO, targetISO, this.ratesTable);
           } catch {
             continue;
           }
@@ -3301,10 +3393,10 @@
           span.className = "cc-price-highlight";
           span.setAttribute("data-cc-converted", "true");
           span.textContent = formattedConverted;
-          span.setAttribute("title", `Original: ${p.raw} (${p.currency})`);
+          span.setAttribute("title", `Original: ${p.raw} (${sourceISO})`);
           this.conversionMetadata.set(span, {
             originalAmount: p.amount,
-            originalCurrency: p.currency,
+            originalCurrency: sourceISO,
             convertedAmount,
             targetCurrency: this.targetCurrency,
             rate: rateUsed,
@@ -3323,11 +3415,12 @@
       let modifiedText = originalText;
       for (let i = validPrices.length - 1; i >= 0; i--) {
         const p = validPrices[i];
+        const sourceISO = p.currency ? p.currency.toUpperCase() : null;
         let convertedAmount;
         let rateUsed;
         try {
-          rateUsed = calculateRate(p.currency, this.targetCurrency, this.ratesTable);
-          convertedAmount = convertAmount(p.amount, p.currency, this.targetCurrency, this.ratesTable);
+          rateUsed = calculateRate(sourceISO, targetISO, this.ratesTable);
+          convertedAmount = convertAmount(p.amount, sourceISO, targetISO, this.ratesTable);
         } catch {
           continue;
         }
@@ -3342,7 +3435,7 @@
         modifiedText = modifiedText.slice(0, p.startIndex) + display.text + modifiedText.slice(p.endIndex);
         this.conversionMetadata.set(textNode, {
           originalAmount: p.amount,
-          originalCurrency: p.currency,
+          originalCurrency: sourceISO,
           convertedAmount,
           targetCurrency: this.targetCurrency,
           rate: rateUsed,
@@ -3366,6 +3459,8 @@
             el.removeAttribute("data-cc-converted");
             el.removeAttribute("title");
           }
+          this.elementOriginalFragments.delete(el);
+          this.conversionMetadata.delete(el);
         }
         this.convertedElements.clear();
         for (const textNode of this.convertedTextNodes) {
@@ -3379,10 +3474,14 @@
                 if (r.parentNode === parent) {
                   parent.removeChild(r);
                 }
+                this.conversionMetadata.delete(r);
               }
             }
             textNode.nodeValue = originalText;
           }
+          this.textOriginalData.delete(textNode);
+          this.highlightSpans.delete(textNode);
+          this.conversionMetadata.delete(textNode);
         }
         this.convertedTextNodes.clear();
         this.convertedCount = 0;
@@ -3402,20 +3501,28 @@
       if (this.observer) return;
       const MutationObserverImpl = typeof MutationObserver !== "undefined" ? MutationObserver : this.doc.defaultView && this.doc.defaultView.MutationObserver;
       if (!MutationObserverImpl) return;
+      const pendingAddedNodes = /* @__PURE__ */ new Set();
       this.observer = new MutationObserverImpl((mutations) => {
         if (this.isMutatingOwnDOM || !this.isConverted) return;
-        if (this.debounceTimer) clearTimeout(this.debounceTimer);
-        this.debounceTimer = setTimeout(() => {
-          for (const m of mutations) {
-            if (m.type === "childList") {
-              for (const node of m.addedNodes) {
-                if (node.nodeType === 1 && !this._isNodeIgnored(node)) {
-                  this.convert(node);
-                }
+        for (const m of mutations) {
+          if (m.type === "childList") {
+            for (const node of m.addedNodes) {
+              if (node.nodeType === 1 && !this._isNodeIgnored(node)) {
+                pendingAddedNodes.add(node);
               }
             }
           }
-        }, 150);
+        }
+        if (this.debounceTimer) clearTimeout(this.debounceTimer);
+        this.debounceTimer = setTimeout(() => {
+          const nodesToProcess = Array.from(pendingAddedNodes);
+          pendingAddedNodes.clear();
+          for (const node of nodesToProcess) {
+            if (node.isConnected) {
+              this.convert(node);
+            }
+          }
+        }, 100);
       });
       this.observer.observe(this.doc.body, {
         childList: true,
@@ -3432,28 +3539,74 @@
   };
 
   // src/content/ui.js
+  function createSvg(doc, width, height, viewBox, strokeWidth, paths = [], circles = []) {
+    const svg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width", String(width));
+    svg.setAttribute("height", String(height));
+    svg.setAttribute("viewBox", viewBox);
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", String(strokeWidth));
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    svg.setAttribute("aria-hidden", "true");
+    for (const c of circles) {
+      const circle = doc.createElementNS("http://www.w3.org/2000/svg", "circle");
+      for (const [k, v] of Object.entries(c)) {
+        circle.setAttribute(k, String(v));
+      }
+      svg.appendChild(circle);
+    }
+    for (const p of paths) {
+      const path = doc.createElementNS("http://www.w3.org/2000/svg", "path");
+      for (const [k, v] of Object.entries(p)) {
+        path.setAttribute(k, String(v));
+      }
+      svg.appendChild(path);
+    }
+    return svg;
+  }
   var InPageUI = class {
     constructor({
       doc = typeof document !== "undefined" ? document : null,
       targetCurrency = "USD",
+      isConverted: isConverted2 = true,
+      convertedCount = 0,
       rateDate: rateDate2 = null,
       provider = null,
+      theme = "system",
       onShowOriginal = null,
+      onConvert = null,
       onChangeCurrency = null,
       onDismiss = null
     } = {}) {
       this.doc = doc;
       this.targetCurrency = targetCurrency;
+      this.isConverted = isConverted2;
+      this.convertedCount = convertedCount;
       this.rateDate = rateDate2;
       this.provider = provider;
+      this.theme = theme;
       this.onShowOriginal = onShowOriginal;
+      this.onConvert = onConvert;
       this.onChangeCurrency = onChangeCurrency;
       this.onDismiss = onDismiss;
       this.rootContainer = null;
       this.shadowRoot = null;
+      this.barContainer = null;
       this.barElement = null;
+      this.collapsedElement = null;
       this.tooltipElement = null;
       this.isDismissedForSession = false;
+      this.isCollapsed = false;
+      this._idleTimer = null;
+      this._idleDelay = 3500;
+      this.isDragging = false;
+      this.dragStartX = 0;
+      this.dragStartY = 0;
+      this.barStartLeft = 0;
+      this.barStartTop = 0;
+      this.hasMovedDrag = false;
       this._checkSessionDismissal();
     }
     _checkSessionDismissal() {
@@ -3467,7 +3620,7 @@
     mount(cssContent = "") {
       if (!this.doc || !this.doc.body || this.rootContainer) return;
       this.rootContainer = this.doc.createElement("div");
-      this.rootContainer.id = "currency-convertr-root";
+      this.rootContainer.id = "cc-dynamic-island-host";
       this.rootContainer.setAttribute("data-cc-ignore", "true");
       this.shadowRoot = this.rootContainer.attachShadow({ mode: "open" });
       if (cssContent) {
@@ -3475,55 +3628,109 @@
         styleEl.textContent = cssContent;
         this.shadowRoot.appendChild(styleEl);
       }
-      const container = this.doc.createElement("div");
-      container.className = "cc-container";
-      this.barElement = this._buildBar();
-      container.appendChild(this.barElement);
+      this.barContainer = this.doc.createElement("div");
+      this.barContainer.className = "cc-island-container cc-container";
+      this._applyTheme(this.theme);
+      this.barElement = this._buildDynamicIsland();
+      this.barContainer.appendChild(this.barElement);
+      this.collapsedElement = this._buildCollapsedPill();
+      this.barContainer.appendChild(this.collapsedElement);
       this.tooltipElement = this._buildTooltip();
-      container.appendChild(this.tooltipElement);
-      this.shadowRoot.appendChild(container);
+      this.barContainer.appendChild(this.tooltipElement);
+      this.shadowRoot.appendChild(this.barContainer);
       this.doc.body.appendChild(this.rootContainer);
+      this._setupDragging();
+      this._setupIdleAutoFade();
       if (this.isDismissedForSession) {
         this.barElement.style.display = "none";
+        this.collapsedElement.style.display = "none";
       }
     }
-    _buildBar() {
-      const bar = this.doc.createElement("div");
-      bar.className = "cc-bar";
-      bar.setAttribute("role", "status");
-      bar.setAttribute("aria-label", `Prices converted to ${this.targetCurrency}`);
-      const badge = this.doc.createElement("span");
-      badge.className = "cc-brand-badge";
-      badge.textContent = "fx";
-      bar.appendChild(badge);
-      const info = this.doc.createElement("span");
-      info.className = "cc-info";
-      info.appendChild(this.doc.createTextNode("Prices in "));
+    _applyTheme(theme) {
+      if (!this.barContainer) return;
+      if (theme === "dark") {
+        this.barContainer.setAttribute("data-theme", "dark");
+      } else if (theme === "light") {
+        this.barContainer.setAttribute("data-theme", "light");
+      } else {
+        this.barContainer.removeAttribute("data-theme");
+      }
+    }
+    _buildDynamicIsland() {
+      const island = this.doc.createElement("div");
+      island.className = "cc-dynamic-island cc-bar";
+      island.setAttribute("role", "toolbar");
+      island.setAttribute("aria-label", "Currency Convertr Dynamic Island");
+      const compact = this.doc.createElement("div");
+      compact.className = "cc-island-compact";
+      const statusDot = this.doc.createElement("div");
+      statusDot.className = `cc-status-dot ${!this.isConverted ? "cc-status-inactive" : ""}`;
+      compact.appendChild(statusDot);
       const codeSpan = this.doc.createElement("span");
       codeSpan.className = "cc-currency-code";
       codeSpan.textContent = this.targetCurrency;
-      info.appendChild(codeSpan);
-      bar.appendChild(info);
-      const sep1 = this.doc.createElement("span");
-      sep1.className = "cc-sep";
-      sep1.textContent = "\xB7";
-      bar.appendChild(sep1);
+      compact.appendChild(codeSpan);
+      const sep = this.doc.createElement("span");
+      sep.className = "cc-count-sep cc-sep";
+      sep.setAttribute("aria-hidden", "true");
+      sep.textContent = "\xB7";
+      compact.appendChild(sep);
+      const countBadge = this.doc.createElement("span");
+      countBadge.className = "cc-count-badge";
+      countBadge.textContent = String(this.convertedCount || 0);
+      if (!this.convertedCount) countBadge.style.display = "none";
+      compact.appendChild(countBadge);
+      island.appendChild(compact);
+      const expandable = this.doc.createElement("div");
+      expandable.className = "cc-island-expandable";
+      const expandableContent = this.doc.createElement("div");
+      expandableContent.className = "cc-island-expandable-content";
+      const rateSpan = this.doc.createElement("span");
+      rateSpan.className = "cc-live-rate";
+      rateSpan.textContent = this.rateDate ? `${this.rateDate}` : "";
+      if (!this.rateDate) rateSpan.style.display = "none";
+      expandableContent.appendChild(rateSpan);
+      const segmented = this.doc.createElement("div");
+      segmented.className = "cc-segmented";
+      segmented.setAttribute("role", "tablist");
+      segmented.setAttribute("aria-label", "View original or converted prices");
       const btnOriginal = this.doc.createElement("button");
-      btnOriginal.className = "cc-btn";
+      btnOriginal.className = `cc-segment-btn cc-segment-original ${!this.isConverted ? "active" : ""}`;
       btnOriginal.setAttribute("type", "button");
-      btnOriginal.setAttribute("aria-label", "Restore original page prices");
-      btnOriginal.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="cc-btn-icon" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>Show original</span>`;
+      btnOriginal.setAttribute("role", "tab");
+      btnOriginal.setAttribute("aria-selected", !this.isConverted ? "true" : "false");
+      btnOriginal.setAttribute("data-state", "original");
+      btnOriginal.textContent = "Original";
       btnOriginal.addEventListener("click", (e) => {
         e.preventDefault();
-        if (this.onShowOriginal) this.onShowOriginal();
+        e.stopPropagation();
+        if (this.isConverted) {
+          this.update({ isConverted: false });
+          if (this.onShowOriginal) this.onShowOriginal();
+        }
       });
-      bar.appendChild(btnOriginal);
-      const sep2 = this.doc.createElement("span");
-      sep2.className = "cc-sep";
-      sep2.textContent = "\xB7";
-      bar.appendChild(sep2);
+      segmented.appendChild(btnOriginal);
+      const btnConverted = this.doc.createElement("button");
+      btnConverted.className = `cc-segment-btn cc-segment-converted ${this.isConverted ? "active" : ""}`;
+      btnConverted.setAttribute("type", "button");
+      btnConverted.setAttribute("role", "tab");
+      btnConverted.setAttribute("data-state", "converted");
+      btnConverted.setAttribute("aria-selected", this.isConverted ? "true" : "false");
+      btnConverted.setAttribute("aria-label", `Show prices converted to ${this.targetCurrency}`);
+      btnConverted.textContent = "Converted";
+      btnConverted.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!this.isConverted) {
+          this.update({ isConverted: true });
+          if (this.onConvert) this.onConvert(this.targetCurrency);
+        }
+      });
+      segmented.appendChild(btnConverted);
+      expandableContent.appendChild(segmented);
       const selectWrapper = this.doc.createElement("div");
       selectWrapper.className = "cc-select-wrapper";
+      selectWrapper.style.display = "none";
       const select = this.doc.createElement("select");
       select.className = "cc-select";
       select.setAttribute("aria-label", "Change target currency");
@@ -3532,73 +3739,265 @@
         const opt = this.doc.createElement("option");
         opt.value = c.code;
         opt.textContent = `${c.code} (${c.symbol})`;
-        if (c.code === this.targetCurrency) {
-          opt.selected = true;
-        }
+        if (c.code === this.targetCurrency) opt.selected = true;
         select.appendChild(opt);
       }
       select.addEventListener("change", (e) => {
         const newCur = e.target.value;
         if (newCur && newCur !== this.targetCurrency) {
           this.targetCurrency = newCur;
-          const curCodeEl = bar.querySelector(".cc-currency-code");
-          if (curCodeEl) curCodeEl.textContent = newCur;
+          codeSpan.textContent = newCur;
+          this.update({ isConverted: true, targetCurrency: newCur });
           if (this.onChangeCurrency) this.onChangeCurrency(newCur);
         }
       });
-      const arrow = this.doc.createElement("span");
-      arrow.className = "cc-select-arrow";
-      arrow.setAttribute("aria-hidden", "true");
-      arrow.innerHTML = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
       selectWrapper.appendChild(select);
-      selectWrapper.appendChild(arrow);
-      bar.appendChild(selectWrapper);
-      const btnClose = this.doc.createElement("button");
-      btnClose.className = "cc-btn-close";
-      btnClose.setAttribute("type", "button");
-      btnClose.setAttribute("aria-label", "Dismiss price bar");
-      btnClose.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
-      btnClose.addEventListener("click", (e) => {
+      expandableContent.appendChild(selectWrapper);
+      const btnDismiss = this.doc.createElement("button");
+      btnDismiss.className = "cc-dismiss-btn cc-btn-close";
+      btnDismiss.setAttribute("type", "button");
+      btnDismiss.setAttribute("title", "Dismiss toolbar for this session");
+      btnDismiss.setAttribute("aria-label", "Dismiss price toolbar");
+      const closeSvg = createSvg(
+        this.doc,
+        10,
+        10,
+        "0 0 24 24",
+        2.5,
+        [
+          { d: "M18 6 6 18" },
+          { d: "m6 6 12 12" }
+        ]
+      );
+      btnDismiss.appendChild(closeSvg);
+      btnDismiss.addEventListener("click", (e) => {
         e.preventDefault();
-        bar.classList.add("cc-bar-exiting");
-        this.isDismissedForSession = true;
-        try {
-          if (typeof sessionStorage !== "undefined") {
-            sessionStorage.setItem("cc_bar_dismissed", "true");
-          }
-        } catch {
-        }
-        setTimeout(() => {
-          bar.style.display = "none";
-          bar.classList.remove("cc-bar-exiting");
-          if (this.onDismiss) this.onDismiss();
-        }, 150);
+        e.stopPropagation();
+        this.dismiss();
       });
-      bar.appendChild(btnClose);
-      return bar;
+      expandableContent.appendChild(btnDismiss);
+      expandable.appendChild(expandableContent);
+      island.appendChild(expandable);
+      return island;
+    }
+    _buildCollapsedPill() {
+      const mini = this.doc.createElement("button");
+      mini.className = "cc-collapsed-pill cc-bar-collapsed";
+      mini.setAttribute("type", "button");
+      mini.setAttribute("title", "Click to expand Currency Convertr Dynamic Island");
+      mini.setAttribute("aria-label", "Expand Currency Convertr Dynamic Island");
+      mini.style.display = "none";
+      const dot = this.doc.createElement("span");
+      dot.className = "cc-status-dot";
+      mini.appendChild(dot);
+      const label = this.doc.createElement("span");
+      label.className = "cc-mini-label";
+      label.textContent = `${this.convertedCount || 0} ${this.targetCurrency}`;
+      mini.appendChild(label);
+      mini.addEventListener("click", () => {
+        this.toggleCollapse();
+      });
+      return mini;
+    }
+    _setupIdleAutoFade() {
+      if (!this.barElement) return;
+      const resetTimer = () => {
+        if (this._idleTimer) {
+          clearTimeout(this._idleTimer);
+          this._idleTimer = null;
+        }
+        this.barElement.classList.remove("cc-idle-fade");
+        this._idleTimer = setTimeout(() => {
+          if (!this.isCollapsed && this.barElement.style.display !== "none") {
+            this.barElement.classList.add("cc-idle-fade");
+          }
+        }, this._idleDelay);
+      };
+      this.barElement.addEventListener("pointerenter", () => {
+        if (this._idleTimer) clearTimeout(this._idleTimer);
+        this.barElement.classList.remove("cc-idle-fade");
+      });
+      this.barElement.addEventListener("focusin", () => {
+        if (this._idleTimer) clearTimeout(this._idleTimer);
+        this.barElement.classList.remove("cc-idle-fade");
+      });
+      this.barElement.addEventListener("pointerleave", resetTimer);
+      this.barElement.addEventListener("focusout", resetTimer);
+      resetTimer();
+    }
+    _setupDragging() {
+      if (!this.barContainer || !this.barElement) return;
+      const onPointerDown = (e) => {
+        const target = e.target;
+        if (target.tagName === "BUTTON" || target.tagName === "SELECT" || target.tagName === "OPTION" || target.closest("button") || target.closest("select")) {
+          return;
+        }
+        this.isDragging = true;
+        this.hasMovedDrag = false;
+        this.dragStartX = e.clientX;
+        this.dragStartY = e.clientY;
+        const rect = this.barContainer.getBoundingClientRect();
+        this.barStartLeft = rect.left;
+        this.barStartTop = rect.top;
+        this.barContainer.classList.add("cc-dragging");
+        this.doc.addEventListener("pointermove", onPointerMove, { passive: false });
+        this.doc.addEventListener("pointerup", onPointerUp, { passive: false });
+        this.doc.addEventListener("pointercancel", onPointerUp, { passive: false });
+      };
+      const onPointerMove = (e) => {
+        if (!this.isDragging) return;
+        const dx = e.clientX - this.dragStartX;
+        const dy = e.clientY - this.dragStartY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+          this.hasMovedDrag = true;
+        }
+        const winWidth = this.doc.defaultView?.innerWidth || 1200;
+        const winHeight = this.doc.defaultView?.innerHeight || 800;
+        const barWidth = this.barContainer.offsetWidth || 220;
+        const barHeight = this.barContainer.offsetHeight || 36;
+        const newLeft = Math.min(Math.max(this.barStartLeft + dx, 8), winWidth - barWidth - 8);
+        const newTop = Math.min(Math.max(this.barStartTop + dy, 8), winHeight - barHeight - 8);
+        this.barContainer.style.left = `${newLeft}px`;
+        this.barContainer.style.top = `${newTop}px`;
+        this.barContainer.style.transform = "none";
+        e.preventDefault();
+      };
+      const onPointerUp = () => {
+        this.isDragging = false;
+        this.barContainer.classList.remove("cc-dragging");
+        this.doc.removeEventListener("pointermove", onPointerMove);
+        this.doc.removeEventListener("pointerup", onPointerUp);
+        this.doc.removeEventListener("pointercancel", onPointerUp);
+      };
+      this.barElement.addEventListener("pointerdown", onPointerDown);
+      this.collapsedElement.addEventListener("pointerdown", onPointerDown);
+    }
+    toggleCollapse() {
+      this.isCollapsed = !this.isCollapsed;
+      if (this.isCollapsed) {
+        this.barElement.style.display = "none";
+        this.collapsedElement.style.display = "inline-flex";
+      } else {
+        this.collapsedElement.style.display = "none";
+        this.barElement.style.display = "flex";
+        this.barElement.classList.remove("cc-idle-fade");
+        this._setupIdleAutoFade();
+      }
+    }
+    dismiss() {
+      if (!this.barElement) return;
+      this.isDismissedForSession = true;
+      try {
+        if (typeof sessionStorage !== "undefined") {
+          sessionStorage.setItem("cc_bar_dismissed", "true");
+        }
+      } catch {
+      }
+      this.barElement.style.display = "none";
+      if (this.collapsedElement) {
+        this.collapsedElement.style.display = "none";
+      }
+      if (this.onDismiss) this.onDismiss();
+    }
+    hide() {
+      if (this.barElement) {
+        this.barElement.style.display = "none";
+      }
+      if (this.collapsedElement) {
+        this.collapsedElement.style.display = "none";
+      }
+      this.hideTooltip();
+    }
+    show() {
+      this.isDismissedForSession = false;
+      try {
+        if (typeof sessionStorage !== "undefined") {
+          sessionStorage.removeItem("cc_bar_dismissed");
+        }
+      } catch {
+      }
+      if (this.barElement) {
+        this.barElement.style.display = "flex";
+        this.barElement.classList.remove("cc-idle-fade");
+      }
+      if (this.collapsedElement) {
+        this.collapsedElement.style.display = "none";
+      }
+      this._setupIdleAutoFade();
+    }
+    update({ isConverted: isConverted2, targetCurrency, count, rateDate: rateDate2, provider, theme } = {}) {
+      if (isConverted2 !== void 0) this.isConverted = Boolean(isConverted2);
+      if (targetCurrency !== void 0) this.targetCurrency = targetCurrency;
+      if (count !== void 0) this.convertedCount = count;
+      if (rateDate2 !== void 0) this.rateDate = rateDate2;
+      if (provider !== void 0) this.provider = provider;
+      if (theme !== void 0) {
+        this.theme = theme;
+        this._applyTheme(theme);
+      }
+      if (!this.barElement) return;
+      const dot = this.barElement.querySelector(".cc-status-dot");
+      const btnOriginal = this.barElement.querySelector(".cc-segment-original");
+      const btnConverted = this.barElement.querySelector(".cc-segment-converted");
+      const codeSpan = this.barElement.querySelector(".cc-currency-code");
+      const countBadge = this.barElement.querySelector(".cc-count-badge");
+      const rateSpan = this.barElement.querySelector(".cc-live-rate");
+      const select = this.barElement.querySelector(".cc-select");
+      const miniLabel = this.collapsedElement?.querySelector(".cc-mini-label");
+      if (dot) {
+        dot.classList.toggle("cc-status-inactive", !this.isConverted);
+      }
+      if (btnOriginal) {
+        btnOriginal.classList.toggle("active", !this.isConverted);
+        btnOriginal.setAttribute("aria-selected", !this.isConverted ? "true" : "false");
+      }
+      if (btnConverted) {
+        btnConverted.classList.toggle("active", this.isConverted);
+        btnConverted.setAttribute("aria-selected", this.isConverted ? "true" : "false");
+      }
+      if (codeSpan) {
+        codeSpan.textContent = this.targetCurrency;
+      }
+      if (countBadge) {
+        countBadge.textContent = String(this.convertedCount || 0);
+        countBadge.style.display = this.convertedCount > 0 ? "inline-flex" : "none";
+      }
+      if (rateSpan && this.rateDate) {
+        rateSpan.textContent = this.rateDate;
+        rateSpan.style.display = "inline";
+      }
+      if (select && select.value !== this.targetCurrency) {
+        select.value = this.targetCurrency;
+      }
+      if (miniLabel) {
+        miniLabel.textContent = `${this.convertedCount || 0} ${this.targetCurrency}`;
+      }
+      if (!this.isDismissedForSession && this.barElement.style.display === "none" && !this.isCollapsed) {
+        this.barElement.style.display = "flex";
+      }
     }
     _buildTooltip() {
       const tooltip = this.doc.createElement("div");
       tooltip.className = "cc-tooltip";
       tooltip.setAttribute("role", "tooltip");
       tooltip.setAttribute("aria-hidden", "true");
+      const content = this.doc.createElement("div");
+      content.className = "cc-tooltip-content";
       const title = this.doc.createElement("div");
       title.className = "cc-tooltip-title";
-      tooltip.appendChild(title);
+      content.appendChild(title);
       const sub = this.doc.createElement("div");
       sub.className = "cc-tooltip-sub";
-      tooltip.appendChild(sub);
+      content.appendChild(sub);
+      const caret = this.doc.createElement("div");
+      caret.className = "cc-tooltip-caret";
+      caret.setAttribute("aria-hidden", "true");
+      tooltip.appendChild(content);
+      tooltip.appendChild(caret);
       return tooltip;
     }
-    showTooltip({ originalAmount, originalCurrency, convertedAmount, rate, date, x, y }) {
+    showTooltip({ originalAmount, originalCurrency, convertedAmount, rate, date, targetElement, x, y }) {
       if (!this.tooltipElement) return;
-      const now = Date.now();
-      const isConsecutiveHover = this.lastHideTimestamp && now - this.lastHideTimestamp < 350;
-      if (isConsecutiveHover) {
-        this.tooltipElement.setAttribute("data-instant", "true");
-      } else {
-        this.tooltipElement.removeAttribute("data-instant");
-      }
       const titleEl = this.tooltipElement.querySelector(".cc-tooltip-title");
       const subEl = this.tooltipElement.querySelector(".cc-tooltip-sub");
       const formattedOriginal = formatCurrency(originalAmount, originalCurrency);
@@ -3606,20 +4005,40 @@
       const formattedUnitRate = rate ? `1 ${originalCurrency} = ${rate.toFixed(4)} ${this.targetCurrency}` : "";
       const dateStr = date ? ` \xB7 Rates: ${date}` : "";
       subEl.textContent = `${formattedUnitRate}${dateStr}`;
-      const left = Math.min(Math.max(x + 12, 10), (this.doc.defaultView?.innerWidth || 1e3) - 290);
-      const top = Math.max(y - 45, 10);
-      this.tooltipElement.style.left = `${left}px`;
-      this.tooltipElement.style.top = `${top}px`;
+      const winWidth = this.doc.defaultView?.innerWidth || 1e3;
+      const tooltipWidth = 260;
+      let left = (x || 0) + 10;
+      let top = (y || 0) - 48;
+      let isFlipped = false;
+      if (targetElement && targetElement.getBoundingClientRect) {
+        const rect = targetElement.getBoundingClientRect();
+        left = rect.left + rect.width / 2 - tooltipWidth / 2;
+        if (rect.top > 54) {
+          top = rect.top - 46;
+          isFlipped = false;
+        } else {
+          top = rect.bottom + 8;
+          isFlipped = true;
+        }
+      }
+      left = Math.min(Math.max(left, 10), winWidth - tooltipWidth - 10);
+      top = Math.max(top, 8);
+      this.tooltipElement.style.left = `${Math.round(left)}px`;
+      this.tooltipElement.style.top = `${Math.round(top)}px`;
+      this.tooltipElement.classList.toggle("flipped", isFlipped);
       this.tooltipElement.classList.add("visible");
       this.tooltipElement.setAttribute("aria-hidden", "false");
     }
     hideTooltip() {
       if (!this.tooltipElement) return;
-      this.lastHideTimestamp = Date.now();
       this.tooltipElement.classList.remove("visible");
       this.tooltipElement.setAttribute("aria-hidden", "true");
     }
     unmount() {
+      if (this._idleTimer) {
+        clearTimeout(this._idleTimer);
+        this._idleTimer = null;
+      }
       if (this.rootContainer && this.rootContainer.parentNode) {
         this.rootContainer.parentNode.removeChild(this.rootContainer);
         this.rootContainer = null;
@@ -3689,7 +4108,342 @@
   }
 
   // src/content/ui.css
-  var ui_default = '/* src/content/ui.css - Shadow DOM Isolated Styles */\r\n\r\n:host {\r\n  all: initial;\r\n  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;\r\n  -webkit-font-smoothing: antialiased;\r\n  -moz-osx-font-smoothing: grayscale;\r\n  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);\r\n  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);\r\n}\r\n\r\n*, *::before, *::after {\r\n  box-sizing: border-box;\r\n  margin: 0;\r\n  padding: 0;\r\n}\r\n\r\n.cc-container {\r\n  position: fixed;\r\n  top: 14px;\r\n  left: 50%;\r\n  transform: translateX(-50%);\r\n  z-index: 2147483647;\r\n  pointer-events: none;\r\n  font-size: 13px;\r\n  color: #09090b;\r\n}\r\n\r\n.cc-bar {\r\n  pointer-events: auto;\r\n  display: flex;\r\n  align-items: center;\r\n  gap: 10px;\r\n  padding: 6px 14px 6px 10px;\r\n  background: rgba(255, 255, 255, 0.92);\r\n  backdrop-filter: blur(16px);\r\n  -webkit-backdrop-filter: blur(16px);\r\n  border: 1px solid rgba(0, 0, 0, 0.08);\r\n  border-radius: 9999px;\r\n  box-shadow: 0 8px 28px -4px rgba(0, 0, 0, 0.1), 0 2px 6px -1px rgba(0, 0, 0, 0.04);\r\n  user-select: none;\r\n  animation: cc-slide-down 0.22s var(--ease-out);\r\n  will-change: transform, opacity;\r\n}\r\n\r\n@keyframes cc-slide-down {\r\n  from {\r\n    opacity: 0;\r\n    transform: translateY(-12px) scale(0.96);\r\n  }\r\n  to {\r\n    opacity: 1;\r\n    transform: translateY(0) scale(1);\r\n  }\r\n}\r\n\r\n.cc-bar.cc-bar-exiting {\r\n  animation: cc-slide-up-exit 0.15s var(--ease-out) forwards;\r\n}\r\n\r\n@keyframes cc-slide-up-exit {\r\n  from {\r\n    opacity: 1;\r\n    transform: translateY(0) scale(1);\r\n  }\r\n  to {\r\n    opacity: 0;\r\n    transform: translateY(-8px) scale(0.96);\r\n  }\r\n}\r\n\r\n.cc-brand-badge {\r\n  display: inline-flex;\r\n  align-items: center;\r\n  justify-content: center;\r\n  width: 20px;\r\n  height: 20px;\r\n  background: #18181b;\r\n  color: #fafafa;\r\n  border-radius: 5px;\r\n  font-size: 11px;\r\n  font-weight: 700;\r\n  letter-spacing: -0.04em;\r\n  flex-shrink: 0;\r\n}\r\n\r\n.cc-info {\r\n  display: flex;\r\n  align-items: center;\r\n  gap: 5px;\r\n  white-space: nowrap;\r\n  font-weight: 500;\r\n  font-variant-numeric: tabular-nums;\r\n}\r\n\r\n.cc-currency-code {\r\n  font-weight: 600;\r\n  color: #09090b;\r\n}\r\n\r\n.cc-sep {\r\n  color: #d4d4d8;\r\n  font-size: 11px;\r\n}\r\n\r\n.cc-btn {\r\n  background: transparent;\r\n  border: 1px solid #e4e4e7;\r\n  border-radius: 9999px;\r\n  padding: 3px 10px;\r\n  font-size: 12px;\r\n  font-weight: 500;\r\n  color: #18181b;\r\n  cursor: pointer;\r\n  outline: none;\r\n  display: inline-flex;\r\n  align-items: center;\r\n  gap: 5px;\r\n  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms var(--ease-out);\r\n  white-space: nowrap;\r\n  user-select: none;\r\n}\r\n\r\n.cc-btn-icon {\r\n  flex-shrink: 0;\r\n  color: #71717a;\r\n  transition: color 140ms ease;\r\n}\r\n\r\n@media (hover: hover) and (pointer: fine) {\r\n  .cc-btn:hover {\r\n    background: #f4f4f5;\r\n    border-color: #d4d4d8;\r\n  }\r\n  .cc-btn:hover .cc-btn-icon {\r\n    color: #18181b;\r\n  }\r\n}\r\n\r\n.cc-btn:active {\r\n  transform: scale(0.96);\r\n}\r\n\r\n.cc-btn:focus-visible {\r\n  outline: 2px solid #2563eb;\r\n  outline-offset: 1px;\r\n}\r\n\r\n.cc-select-wrapper {\r\n  position: relative;\r\n  display: inline-flex;\r\n  align-items: center;\r\n}\r\n\r\n.cc-select {\r\n  appearance: none;\r\n  -webkit-appearance: none;\r\n  background: transparent;\r\n  border: 1px solid #e4e4e7;\r\n  border-radius: 9999px;\r\n  padding: 3px 22px 3px 9px;\r\n  font-size: 12px;\r\n  font-weight: 500;\r\n  color: #18181b;\r\n  cursor: pointer;\r\n  outline: none;\r\n  font-variant-numeric: tabular-nums;\r\n  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms var(--ease-out);\r\n}\r\n\r\n@media (hover: hover) and (pointer: fine) {\r\n  .cc-select:hover {\r\n    background: #f4f4f5;\r\n    border-color: #d4d4d8;\r\n  }\r\n}\r\n\r\n.cc-select:active {\r\n  transform: scale(0.97);\r\n}\r\n\r\n.cc-select:focus-visible {\r\n  outline: 2px solid #2563eb;\r\n  outline-offset: 1px;\r\n}\r\n\r\n.cc-select-arrow {\r\n  position: absolute;\r\n  right: 8px;\r\n  pointer-events: none;\r\n  display: inline-flex;\r\n  align-items: center;\r\n  color: #71717a;\r\n}\r\n\r\n.cc-btn-close {\r\n  display: inline-flex;\r\n  align-items: center;\r\n  justify-content: center;\r\n  width: 22px;\r\n  height: 22px;\r\n  background: transparent;\r\n  border: none;\r\n  border-radius: 50%;\r\n  color: #71717a;\r\n  cursor: pointer;\r\n  outline: none;\r\n  transition: background-color 140ms ease, color 140ms ease, transform 140ms var(--ease-out);\r\n}\r\n\r\n@media (hover: hover) and (pointer: fine) {\r\n  .cc-btn-close:hover {\r\n    background: #f4f4f5;\r\n    color: #09090b;\r\n  }\r\n}\r\n\r\n.cc-btn-close:active {\r\n  transform: scale(0.90);\r\n}\r\n\r\n.cc-btn-close:focus-visible {\r\n  outline: 2px solid #2563eb;\r\n  outline-offset: 1px;\r\n}\r\n\r\n/* Tooltip */\r\n.cc-tooltip {\r\n  position: fixed;\r\n  z-index: 2147483647;\r\n  pointer-events: none;\r\n  background: rgba(24, 24, 27, 0.94);\r\n  backdrop-filter: blur(12px);\r\n  -webkit-backdrop-filter: blur(12px);\r\n  color: #fafafa;\r\n  border: 1px solid rgba(255, 255, 255, 0.12);\r\n  border-radius: 8px;\r\n  padding: 8px 12px;\r\n  font-size: 12px;\r\n  line-height: 1.4;\r\n  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.35), 0 2px 6px -1px rgba(0, 0, 0, 0.15);\r\n  max-width: 280px;\r\n  opacity: 0;\r\n  transform: translateY(4px) scale(0.96);\r\n  transform-origin: bottom center;\r\n  transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out);\r\n  font-variant-numeric: tabular-nums;\r\n  will-change: transform, opacity;\r\n}\r\n\r\n.cc-tooltip[data-instant] {\r\n  transition-duration: 0ms !important;\r\n}\r\n\r\n.cc-tooltip.visible {\r\n  opacity: 1;\r\n  transform: translateY(0) scale(1);\r\n}\r\n\r\n.cc-tooltip-title {\r\n  font-weight: 600;\r\n  margin-bottom: 2px;\r\n  color: #ffffff;\r\n}\r\n\r\n.cc-tooltip-sub {\r\n  color: #a1a1aa;\r\n  font-size: 11px;\r\n}\r\n\r\n/* Dark Mode Support */\r\n@media (prefers-color-scheme: dark) {\r\n  .cc-bar {\r\n    background: rgba(24, 24, 27, 0.90);\r\n    border-color: rgba(255, 255, 255, 0.12);\r\n    color: #fafafa;\r\n    box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.5), 0 2px 6px -1px rgba(0, 0, 0, 0.25);\r\n  }\r\n\r\n  .cc-brand-badge {\r\n    background: #fafafa;\r\n    color: #18181b;\r\n  }\r\n\r\n  .cc-currency-code {\r\n    color: #fafafa;\r\n  }\r\n\r\n  .cc-sep {\r\n    color: #3f3f46;\r\n  }\r\n\r\n  .cc-btn, .cc-select {\r\n    border-color: #27272a;\r\n    color: #fafafa;\r\n  }\r\n\r\n  @media (hover: hover) and (pointer: fine) {\r\n    .cc-btn:hover, .cc-select:hover {\r\n      background: #27272a;\r\n      border-color: #3f3f46;\r\n    }\r\n  }\r\n\r\n  .cc-select-arrow {\r\n    color: #a1a1aa;\r\n  }\r\n\r\n  .cc-btn-close {\r\n    color: #a1a1aa;\r\n  }\r\n\r\n  @media (hover: hover) and (pointer: fine) {\r\n    .cc-btn-close:hover {\r\n      background: #27272a;\r\n      color: #ffffff;\r\n    }\r\n  }\r\n\r\n  .cc-tooltip {\r\n    background: rgba(24, 24, 27, 0.96);\r\n    border-color: rgba(255, 255, 255, 0.15);\r\n  }\r\n}\r\n\r\n/* Accessibility: Reduced Motion */\r\n@media (prefers-reduced-motion: reduce) {\r\n  .cc-bar {\r\n    animation: none;\r\n  }\r\n\r\n  .cc-bar.cc-bar-exiting {\r\n    animation: none;\r\n    opacity: 0;\r\n  }\r\n\r\n  .cc-btn,\r\n  .cc-btn-close,\r\n  .cc-select {\r\n    transition: none;\r\n    transform: none !important;\r\n  }\r\n\r\n  .cc-tooltip {\r\n    transition: opacity 120ms ease;\r\n    transform: none !important;\r\n  }\r\n}\r\n\r\n';
+  var ui_default = `/* src/content/ui.css - Apple Dynamic Island Hardware OLED Styles */
+
+:host {
+  all: initial;
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.cc-island-container {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translate3d(-50%, 0, 0);
+  pointer-events: auto;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 1. Dynamic Island Capsule */
+.cc-dynamic-island {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  background-color: #09090b;
+  color: #fafafa;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.45), 0 2px 6px -1px rgba(0, 0, 0, 0.25);
+  cursor: default;
+  overflow: hidden;
+  will-change: transform, opacity;
+  transform-origin: center top;
+  transition:
+    transform 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 200ms ease;
+}
+
+.cc-dynamic-island:hover,
+.cc-dynamic-island:focus-within,
+.cc-dynamic-island.cc-expanded {
+  transform: scale(1.015);
+  box-shadow: 0 14px 34px -4px rgba(0, 0, 0, 0.55), 0 4px 10px -1px rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Hidden State */
+.cc-dynamic-island.cc-hidden {
+  opacity: 0;
+  transform: translateY(-14px) scale(0.92);
+  pointer-events: none;
+}
+
+/* Idle smooth collapse */
+.cc-dynamic-island.cc-idle-fade {
+  opacity: 0.28;
+  transform: scale(0.96);
+  transition: opacity 400ms ease, transform 400ms ease;
+}
+
+.cc-dynamic-island.cc-idle-fade:hover,
+.cc-dynamic-island.cc-idle-fade:focus-within {
+  opacity: 1;
+  transform: scale(1.015);
+}
+
+/* Compact Inner Section */
+.cc-island-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* 6px Status Dot */
+.cc-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10b981;
+  flex-shrink: 0;
+  transition: background-color 200ms ease;
+}
+
+.cc-status-dot.cc-status-inactive {
+  background-color: #71717a;
+}
+
+/* Summary Text */
+.cc-currency-code {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fafafa;
+  letter-spacing: -0.02em;
+}
+
+.cc-count-sep {
+  font-size: 11px;
+  color: #71717a;
+  user-select: none;
+}
+
+.cc-count-badge {
+  font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #a1a1aa;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Expandable Grid Track (0fr -> 1fr zero-jank morph) */
+.cc-island-expandable {
+  display: grid;
+  grid-template-columns: 0fr;
+  transition: grid-template-columns 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+}
+
+.cc-dynamic-island:hover .cc-island-expandable,
+.cc-dynamic-island:focus-within .cc-island-expandable,
+.cc-dynamic-island.cc-expanded .cc-island-expandable {
+  grid-template-columns: 1fr;
+}
+
+.cc-island-expandable-content {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 10px;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition:
+    opacity 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  white-space: nowrap;
+}
+
+.cc-dynamic-island:hover .cc-island-expandable-content,
+.cc-dynamic-island:focus-within .cc-island-expandable-content,
+.cc-dynamic-island.cc-expanded .cc-island-expandable-content {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Live Exchange Rate */
+.cc-live-rate {
+  font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 450;
+  color: #a1a1aa;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Tactile Pill Toggle [ Original | Converted ] */
+.cc-segmented {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.cc-segment-btn {
+  background: transparent;
+  border: none;
+  border-radius: 9999px;
+  padding: 2px 8px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: #71717a;
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
+  outline: none;
+}
+
+.cc-segment-btn:hover {
+  color: #fafafa;
+}
+
+.cc-segment-btn.active {
+  background: #27272a;
+  color: #fafafa;
+}
+
+.cc-segment-btn:focus-visible {
+  outline: 1.5px solid #fafafa;
+  outline-offset: 1px;
+}
+
+/* Quiet Dismiss Button */
+.cc-dismiss-btn {
+  background: transparent;
+  border: none;
+  color: #71717a;
+  padding: 3px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 140ms ease, transform 140ms ease;
+  outline: none;
+}
+
+.cc-dismiss-btn:hover {
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+.cc-dismiss-btn:active {
+  transform: scale(0.92);
+}
+
+.cc-dismiss-btn:focus-visible {
+  outline: 1.5px solid #fafafa;
+}
+
+/* Collapsed Mini Pill */
+.cc-collapsed-pill {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  background-color: #09090b;
+  color: #fafafa;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.cc-collapsed-pill:hover {
+  transform: scale(1.05);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* 2. Precision OLED Hover Tooltip */
+.cc-tooltip {
+  position: fixed;
+  display: none;
+  flex-direction: column;
+  background: #09090b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: #fafafa;
+  font-size: 11.5px;
+  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 2147483647;
+  max-width: 280px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.cc-tooltip.visible {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.cc-tooltip-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #fafafa;
+  margin-bottom: 2px;
+  letter-spacing: -0.01em;
+}
+
+.cc-tooltip-sub {
+  font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: #a1a1aa;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.cc-tooltip-caret {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #09090b;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  transform: rotate(45deg);
+  bottom: -4px;
+  left: 50%;
+  margin-left: -3px;
+}
+
+/* 3. Reduced Motion Fallback */
+@media (prefers-reduced-motion: reduce) {
+  .cc-dynamic-island,
+  .cc-island-expandable,
+  .cc-island-expandable-content,
+  .cc-collapsed-pill,
+  .cc-tooltip {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+}
+`;
 
   // src/content/content.js
   var currentScanner = null;
@@ -3756,7 +4510,11 @@
     }
     const roundWhole = options.roundWhole !== void 0 ? options.roundWhole : currentSettings?.roundWhole || false;
     const showInPageBar = options.showInPageBar !== void 0 ? options.showInPageBar : currentSettings?.showInPageBar !== false;
-    if (!globalRates || options.forceRefreshRates) {
+    if (options.ratesTable) {
+      globalRates = options.ratesTable;
+      rateDate = options.rateDate || rateDate;
+      rateProvider = options.provider || rateProvider;
+    } else if (!globalRates || options.forceRefreshRates) {
       try {
         const response = await sendMessage({ type: MSG.GET_RATES });
         if (response && response.rates) {
@@ -3765,8 +4523,14 @@
           rateProvider = response.provider;
         }
       } catch (err) {
-        console.warn("[CurrencyConverter] Could not fetch rates from background:", err.message);
-        return { success: false, error: err.message };
+        if (typeof window !== "undefined" && window.mockRates) {
+          globalRates = window.mockRates;
+          rateDate = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+          rateProvider = "ECB (Mock)";
+        } else {
+          console.warn("[CurrencyConverter] Could not fetch rates from background:", err.message);
+          return { success: false, error: err.message };
+        }
       }
     }
     if (!globalRates) {
@@ -3784,21 +4548,32 @@
       rateDate,
       provider: rateProvider,
       onConvertedCountChange: (count) => {
+        if (currentUI) {
+          currentUI.update({ count });
+        }
         notifyBackgroundOfStatus();
       }
     });
     const convertedCount = currentScanner.convert();
-    currentScanner.startObserving();
-    isConverted = true;
-    if (showInPageBar) {
+    isConverted = currentScanner.isConverted && convertedCount > 0;
+    if (isConverted) {
+      currentScanner.startObserving();
+    }
+    if (showInPageBar && isConverted && convertedCount > 0) {
       if (!currentUI) {
         currentUI = new InPageUI({
           doc: document,
           targetCurrency,
+          isConverted: true,
+          convertedCount,
           rateDate,
           provider: rateProvider,
+          theme: currentSettings?.theme || "system",
           onShowOriginal: () => {
             performRevert();
+          },
+          onConvert: (cur) => {
+            performConversion({ targetCurrency: cur });
           },
           onChangeCurrency: (newCur) => {
             performConversion({ targetCurrency: newCur });
@@ -3806,7 +4581,19 @@
         });
         currentUI.mount(ui_default);
       } else {
-        currentUI.targetCurrency = targetCurrency;
+        currentUI.update({
+          isConverted: true,
+          targetCurrency,
+          count: convertedCount,
+          rateDate,
+          provider: rateProvider,
+          theme: currentSettings?.theme || "system"
+        });
+        currentUI.show();
+      }
+    } else {
+      if (currentUI) {
+        currentUI.hide();
       }
     }
     notifyBackgroundOfStatus();
@@ -3818,6 +4605,9 @@
       currentScanner.stopObserving();
     }
     isConverted = false;
+    if (currentUI) {
+      currentUI.update({ isConverted: false });
+    }
     notifyBackgroundOfStatus();
     return { success: true, count: 0 };
   }
@@ -3835,6 +4625,7 @@
         convertedAmount: meta.convertedAmount,
         rate: meta.rate,
         date: meta.date,
+        targetElement: convertedEl,
         x: e.clientX,
         y: e.clientY
       });
@@ -3891,5 +4682,15 @@
     document.addEventListener("DOMContentLoaded", initializeContentScript);
   } else {
     initializeContentScript();
+  }
+  if (typeof window !== "undefined") {
+    window.addEventListener("message", (event) => {
+      if (!event.data || typeof event.data !== "object") return;
+      if (event.data.type === "CC_MANUAL_CONVERT") {
+        performConversion(event.data);
+      } else if (event.data.type === "CC_MANUAL_REVERT") {
+        performRevert();
+      }
+    });
   }
 })();

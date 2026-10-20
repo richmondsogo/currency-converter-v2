@@ -1,13 +1,17 @@
 // src/content/scanner.js
-import { extractPrices } from '../shared/parser.js';
+import { extractPrices, inferPageCurrency } from '../shared/parser.js';
 import { formatCurrency, formatPriceDisplay } from '../shared/format.js';
 import { calculateRate, convertAmount } from '../shared/rates.js';
 
 export const IGNORED_SELECTOR = [
   'script', 'style', 'noscript', 'textarea', 'input', 'select',
   'option', 'code', 'pre', 'svg', 'canvas', '[contenteditable]',
-  '[data-cc-ignore]', '#currency-convertr-root', '.currency-convertr-ui'
+  '[contenteditable="true"]', '[data-cc-ignore]',
+  '#cc-dynamic-island-host', '#currency-convertr-root',
+  '.currency-convertr-ui', '[data-cc-converted="true"]'
 ].join(', ');
+
+export { inferPageCurrency };
 
 export class PageScanner {
   constructor({
@@ -50,6 +54,15 @@ export class PageScanner {
 
   _initializePageContext() {
     if (!this.doc) return;
+
+    // Fast cached helper for page native currency
+    const inferred = inferPageCurrency(this.doc);
+    if (inferred && !this.context.pageContextISO) {
+      this.context.pageContextISO = inferred;
+    }
+    if (inferred && !this.context.structuredHint) {
+      this.context.structuredHint = inferred;
+    }
 
     // 1. Hostname for TLD
     if (!this.context.tld && this.doc.location && this.doc.location.hostname) {
@@ -154,7 +167,7 @@ export class PageScanner {
     }
 
     this.convertedCount += newConversions;
-    this.isConverted = true;
+    this.isConverted = this.convertedCount > 0;
 
     if (this.onConvertedCountChange && newConversions > 0) {
       this.onConvertedCountChange(this.convertedCount);
@@ -214,6 +227,12 @@ export class PageScanner {
       const prices = extractPrices(text, this.context);
       if (prices.length !== 1) continue;
 
+      const sourceISO = prices[0].currency ? prices[0].currency.toUpperCase() : null;
+      const targetISO = this.targetCurrency ? this.targetCurrency.toUpperCase() : 'USD';
+      if (!sourceISO || sourceISO === targetISO) {
+        continue;
+      }
+
       // Verify that no individual descendant text node contained the full price
       const walker = this.doc.createTreeWalker(el, 4); // SHOW_TEXT
       let tNode;
@@ -245,13 +264,19 @@ export class PageScanner {
     if (prices.length !== 1) return false;
 
     const price = prices[0];
-    if (price.currency === this.targetCurrency) return false;
+    const sourceISO = price.currency ? price.currency.toUpperCase() : null;
+    const targetISO = this.targetCurrency ? this.targetCurrency.toUpperCase() : 'USD';
+
+    // HARD BAILOUT GATE
+    if (!sourceISO || sourceISO === targetISO) {
+      return false;
+    }
 
     let convertedAmount;
     let rateUsed;
     try {
-      rateUsed = calculateRate(price.currency, this.targetCurrency, this.ratesTable);
-      convertedAmount = convertAmount(price.amount, price.currency, this.targetCurrency, this.ratesTable);
+      rateUsed = calculateRate(sourceISO, targetISO, this.ratesTable);
+      convertedAmount = convertAmount(price.amount, sourceISO, targetISO, this.ratesTable);
     } catch {
       return false;
     }
@@ -311,8 +336,13 @@ export class PageScanner {
     const prices = extractPrices(originalText, this.context);
     if (prices.length === 0) return false;
 
-    // Filter to convertible prices
-    const validPrices = prices.filter(p => p.currency !== this.targetCurrency);
+    const targetISO = this.targetCurrency ? this.targetCurrency.toUpperCase() : 'USD';
+
+    // HARD BAILOUT GATE: Filter to convertible prices where sourceISO !== targetISO
+    const validPrices = prices.filter(p => {
+      const sourceISO = p.currency ? p.currency.toUpperCase() : null;
+      return sourceISO && sourceISO !== targetISO;
+    });
     if (validPrices.length === 0) return false;
 
     // Store original text
@@ -326,11 +356,12 @@ export class PageScanner {
       let lastIndex = 0;
 
       for (const p of validPrices) {
+        const sourceISO = p.currency ? p.currency.toUpperCase() : null;
         let convertedAmount;
         let rateUsed;
         try {
-          rateUsed = calculateRate(p.currency, this.targetCurrency, this.ratesTable);
-          convertedAmount = convertAmount(p.amount, p.currency, this.targetCurrency, this.ratesTable);
+          rateUsed = calculateRate(sourceISO, targetISO, this.ratesTable);
+          convertedAmount = convertAmount(p.amount, sourceISO, targetISO, this.ratesTable);
         } catch {
           continue;
         }
@@ -349,11 +380,11 @@ export class PageScanner {
         span.className = 'cc-price-highlight';
         span.setAttribute('data-cc-converted', 'true');
         span.textContent = formattedConverted;
-        span.setAttribute('title', `Original: ${p.raw} (${p.currency})`);
+        span.setAttribute('title', `Original: ${p.raw} (${sourceISO})`);
 
         this.conversionMetadata.set(span, {
           originalAmount: p.amount,
-          originalCurrency: p.currency,
+          originalCurrency: sourceISO,
           convertedAmount,
           targetCurrency: this.targetCurrency,
           rate: rateUsed,
@@ -378,11 +409,12 @@ export class PageScanner {
     // Replace backwards to preserve slice indexes
     for (let i = validPrices.length - 1; i >= 0; i--) {
       const p = validPrices[i];
+      const sourceISO = p.currency ? p.currency.toUpperCase() : null;
       let convertedAmount;
       let rateUsed;
       try {
-        rateUsed = calculateRate(p.currency, this.targetCurrency, this.ratesTable);
-        convertedAmount = convertAmount(p.amount, p.currency, this.targetCurrency, this.ratesTable);
+        rateUsed = calculateRate(sourceISO, targetISO, this.ratesTable);
+        convertedAmount = convertAmount(p.amount, sourceISO, targetISO, this.ratesTable);
       } catch {
         continue;
       }
@@ -404,7 +436,7 @@ export class PageScanner {
 
       this.conversionMetadata.set(textNode, {
         originalAmount: p.amount,
-        originalCurrency: p.currency,
+        originalCurrency: sourceISO,
         convertedAmount,
         targetCurrency: this.targetCurrency,
         rate: rateUsed,
@@ -431,6 +463,8 @@ export class PageScanner {
           el.removeAttribute('data-cc-converted');
           el.removeAttribute('title');
         }
+        this.elementOriginalFragments.delete(el);
+        this.conversionMetadata.delete(el);
       }
       this.convertedElements.clear();
 
@@ -447,10 +481,14 @@ export class PageScanner {
               if (r.parentNode === parent) {
                 parent.removeChild(r);
               }
+              this.conversionMetadata.delete(r);
             }
           }
           textNode.nodeValue = originalText;
         }
+        this.textOriginalData.delete(textNode);
+        this.highlightSpans.delete(textNode);
+        this.conversionMetadata.delete(textNode);
       }
       this.convertedTextNodes.clear();
 
@@ -478,21 +516,31 @@ export class PageScanner {
 
     if (!MutationObserverImpl) return;
 
+    const pendingAddedNodes = new Set();
+
     this.observer = new MutationObserverImpl((mutations) => {
       if (this.isMutatingOwnDOM || !this.isConverted) return;
 
-      if (this.debounceTimer) clearTimeout(this.debounceTimer);
-      this.debounceTimer = setTimeout(() => {
-        for (const m of mutations) {
-          if (m.type === 'childList') {
-            for (const node of m.addedNodes) {
-              if (node.nodeType === 1 && !this._isNodeIgnored(node)) {
-                this.convert(node);
-              }
+      for (const m of mutations) {
+        if (m.type === 'childList') {
+          for (const node of m.addedNodes) {
+            if (node.nodeType === 1 && !this._isNodeIgnored(node)) {
+              pendingAddedNodes.add(node);
             }
           }
         }
-      }, 150);
+      }
+
+      if (this.debounceTimer) clearTimeout(this.debounceTimer);
+      this.debounceTimer = setTimeout(() => {
+        const nodesToProcess = Array.from(pendingAddedNodes);
+        pendingAddedNodes.clear();
+        for (const node of nodesToProcess) {
+          if (node.isConnected) {
+            this.convert(node);
+          }
+        }
+      }, 100);
     });
 
     this.observer.observe(this.doc.body, {
