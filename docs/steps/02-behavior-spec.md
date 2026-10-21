@@ -1,12 +1,13 @@
 # Step 02: Behavior Specification & Consolidated Pipeline
 
-- **Branch**: `step/02-behavior-spec`
+- **Branch**: `step/02-behavior-spec` (Refined in `step/02b-spec-corrections`)
 - **Target Branch**: `main`
 - **Status**: COMPLETE
 - **PR URL**: https://github.com/richmondsogo/currency-convertr/pull/5
-- **First Commit SHA**: `b06fe31`
-- **Last Commit SHA**: `65b7856`
-- **Merge Commit SHA**: `c669025`
+- **PR #5 First Commit SHA**: `b06fe31`
+- **PR #5 Last Commit SHA**: `65b7856`
+- **PR #5 Merge Commit SHA on Main**: `c669025`
+- **Subsequent Direct Commit on Main**: `4e0481b` (recorded provenance locally; Step 02b rectifies this under BUILD_PROTOCOL.md by landing all spec corrections strictly via PR)
 
 ---
 
@@ -44,7 +45,7 @@ export const DEFAULT_SETTINGS = {
 ```
 
 ### The Per-Site Key is `perSite` (Not `siteSettings`)
-In v2.0.0, per-site configurations are stored under the object key **`perSite`** (e.g., `settings.perSite[hostname]`). The legacy shape uses two independent, contradictory booleans:
+In `src/shared/settings.js`, per-site configurations are stored under the object key **`perSite`** (e.g., `settings.perSite[hostname]`). The legacy v2.0.0 shape uses two independent, contradictory booleans:
 ```typescript
 interface LegacyPerSiteRule {
   autoConvert?: boolean;
@@ -206,19 +207,19 @@ export const MSG = {
 };
 ```
 
-### Planned New Message Types for Detector & Handoff (Step 05)
+### Full Planned List of Message Constants for Step 05
 ```javascript
   // Planned for Step 05: Detector & Offer Handoff
   OFFER_REQUESTED: 'CC_OFFER_REQUESTED',           // detector -> background: candidate threshold reached
   SHOW_OFFER: 'CC_SHOW_OFFER',                     // background -> content.js: mount InPageUI in OFFER state
   OFFER_ACCEPTED: 'CC_OFFER_ACCEPTED',             // InPageUI -> background/content: user clicked [Convert]
-  OFFER_DECLINED: 'CC_OFFER_DECLINED',             // InPageUI -> background: user clicked [Not now] or pressed Escape
+  OFFER_DECLINED: 'CC_OFFER_DECLINED',             // InPageUI -> background: user clicked [Not now] or pressed scoped Escape
   SET_SESSION_SUPPRESSION: 'CC_SET_SESSION_SUPPRESSION' // content/ui -> background: persist host in chrome.storage.session
 ```
 
 ---
 
-## 3. Retirement of Legacy Auto-Convert Paths
+## 3. Retiring Legacy Auto-Convert Paths
 
 ### Problem in Current Codebase
 In `src/background.js`, v2.0.0 implements two competing mechanisms for auto-conversion:
@@ -253,21 +254,23 @@ In **Step 05**:
 The handoff architecture is formally recorded in [`docs/adr/0013-detector-and-dynamic-island-pill-handoff-architecture.md`](../adr/0013-detector-and-dynamic-island-pill-handoff-architecture.md).
 
 ### Evaluated Alternatives
-- **Option A (Bundle pill UI into `detector.js`)**: Expands `detector.js` to ~35–40 KB. Duplicates `InPageUI` and `ui.css` across two content scripts, creating two owners for `#cc-dynamic-island-host` and causing DOM synchronization race conditions.
+- **Option A (Bundle pill UI into `detector.js`)**: Expands `detector.js` to ~35–40 KB minified [ESTIMATED / UNVERIFIED]. Duplicates `InPageUI` and `ui.css` across two content scripts, creating two owners for `#cc-dynamic-island-host` and causing DOM synchronization race conditions.
 - **Option B (Tiny detector + separate on-demand UI bundle via `chrome.scripting`)**: Creates 3 separate script lifecycles (`detector.js` -> background -> UI bundle -> conversion engine), increasing architectural surface area.
 - **Option C (Selected — Single Canonical Host with Full Engine On-Demand Injection)**:
-  - `detector.js` is kept strictly minimal (~8–10 KB), containing only read-only `countCandidates()` and the regex parser. It mounts zero DOM elements and attaches no Shadow Roots.
+  - `detector.js` is kept strictly minimal, packaging only the dry-run `countCandidates()` logic and regex parser. It mounts zero DOM elements and attaches no Shadow Roots.
   - When candidate count $\ge \text{MIN\_PRICES}$ on an unconfigured site (`mode === 'ask'`), `detector.js` messages `background.js` via `MSG.OFFER_REQUESTED`.
   - `background.js` checks session suppression; if eligible, it injects `content.js` with payload `{ initialPillState: 'OFFER' }`.
   - `content.js` attaches the single canonical `#cc-dynamic-island-host` and mounts `InPageUI` in the `OFFER` state.
   - When user clicks `[Convert]`, `InPageUI` transitions directly in place (`OFFER` $\to$ `WORKING` $\to$ `CONVERTED`) and runs `PageScanner.convert()`.
-  - If user clicks `[Not now]` or presses scoped `Escape`, `InPageUI` unmounts `#cc-dynamic-island-host` and notifies `background.js` to record session suppression.
+  - If user clicks `[Not now]` or presses scoped `Escape`, `InPageUI` unmounts `#cc-dynamic-island-host` and notifies `background.js` via `MSG.SET_SESSION_SUPPRESSION` to record session suppression.
 
-### Measured Bundle Sizes
-Based on esbuild production builds (`node build.js`):
-- `dist/chrome/content.js`: **131,007 bytes** (~131 KB) (includes 170+ currency dataset `currencies-data.js`, `PageScanner`, `InPageUI`, inlined `ui.css`, formatters).
-- `dist/chrome/background.js`: **78,471 bytes** (~78 KB) (includes `RatesEngine`, `SettingsManager`, cross-rates calculation).
-- Target `dist/chrome/detector.js` (dry-run scanner + regex parser only): **~8 KB – 10 KB** (measured against isolated prototype).
+### Measured Bundle Sizes & Verified Overhead
+Bundle measurements obtained via `esbuild` (`build.js` and throwaway prototype in scratch):
+- `dist/chrome/content.js`: **131,007 bytes** (~131.0 KB minified) [MEASURED via active build]. Contains 170+ currency dataset `currencies-data.js`, `PageScanner`, `InPageUI`, inlined `ui.css`, formatters.
+- `dist/chrome/background.js`: **78,471 bytes** (~78.5 KB minified) [MEASURED via active build]. Contains `RatesEngine`, `SettingsManager`, cross-rates calculation.
+- Throwaway `detector.js` prototype (importing `src/shared/parser.js` with full `currencies-data.js`): **30,500 bytes** (~30.5 KB minified, 61,030 bytes unminified) [MEASURED via esbuild metafile].
+  - Input breakdown: `currencies-data.js` (44.6 KB raw), `parser.js` (13.0 KB raw), `currencies.js` (5.1 KB raw).
+- Potential future trimmed-down detector (major currencies only, without full 170+ currency dataset): **~8 KB – 10 KB** [ESTIMATED / UNVERIFIED].
 
 ### Zero-Flash / Single Host Guarantee
 Because `content.js` is the sole owner of `#cc-dynamic-island-host`, exactly one Shadow Root is ever attached to `document.body`. There is zero DOM handoff friction, zero duplicate mounting, and zero flash of unstyled content between `OFFER`, `WORKING`, and `CONVERTED`.
@@ -338,15 +341,20 @@ interface ConvertResult {
 Modern web applications (e.g. Amazon, eBay, Shopify storefronts) frequently navigate between product listings, search queries, and product details using client-side routing (HTML5 History API) without triggering a browser-level page reload (`document_idle`).
 
 ### Navigation API vs. Observer Polling (Cross-Browser Investigation)
-- **Navigation API (`window.navigation`)**:  
-  In Chromium 102+, `window.navigation` is available to content scripts and provides a native `'navigate'` event ([Chrome Navigation API Guide](https://developer.chrome.com/docs/web-platform/navigation-api/)).  
-  *However, the Navigation API is not supported in Firefox* ([MDN Navigation API Browser Compatibility](https://developer.mozilla.org/en-US/docs/Web/API/Navigation_API)).
-- **Standard History Events (`popstate`, `hashchange`)**:  
-  While supported cross-browser, page scripts calling `history.pushState()` or `history.replaceState()` do not dispatch `popstate` events to content scripts in isolated worlds.
-- **Robust Solution: Progressive Enhancement + MutationObserver URL Tracking**:
-  1. Attach `window.navigation?.addEventListener('navigate', onRouteTransition)` for immediate detection in Chromium.
-  2. Attach `window.addEventListener('popstate', onRouteTransition)` and `window.addEventListener('hashchange', onRouteTransition)` for standard history events.
-  3. Inside the debounced `MutationObserver` (which already runs on dynamic DOM updates), track `lastObservedHref = location.href`. When a mutation batch arrives, if `location.href !== lastObservedHref`, trigger `onRouteTransition()`.
+- **Sources**:
+  - [MDN Navigation API Specification & Browser Compatibility](https://developer.mozilla.org/en-US/docs/Web/API/Navigation_API)
+  - [Chrome for Developers: Navigation API Guide](https://developer.chrome.com/docs/web-platform/navigation-api/)
+  - [Chrome Content Scripts Capabilities Documentation](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts#capabilities)
+- **Investigation Findings**:
+  - In Chromium 102+, `window.navigation` is exposed on the standard window object. However, whether `window.navigation.addEventListener('navigate', ...)` reliably intercepts and fires in an extension isolated-world content script across all host-page routing implementations is **an unverified assumption** in the current codebase.
+  - MDN browser compatibility tables confirm that **Firefox does NOT support the Navigation API** (status: Not supported).
+  - Page scripts executing `history.pushState()` or `history.replaceState()` do not dispatch standard `popstate` events to isolated-world content scripts.
+- **Robust Cross-Browser Solution**:
+  1. Progressive enhancement: Attach `window.navigation?.addEventListener('navigate', onRouteTransition)` for Chromium.
+  2. Fallback window listeners: Attach `window.addEventListener('popstate', onRouteTransition)` and `window.addEventListener('hashchange', onRouteTransition)`.
+  3. Continuous mutation tracking: Inside the debounced `MutationObserver` (which already monitors dynamic DOM mutations), track `lastObservedHref = location.href`. When a mutation batch arrives, if `location.href !== lastObservedHref`, execute `onRouteTransition()`.
+- **Mandatory Step 05 Verification**:
+  > **[VERIFY IN STEP 05 on a real SPA]**: When implementing `detector.js` in Step 05, test whether `window.navigation.addEventListener('navigate', ...)` fires inside the content script isolated world on a real client-side routing app (e.g. Next.js or React Router); ensure `MutationObserver` URL tracking functions as the resilient baseline regardless of Navigation API availability.
 
 ### Reset Rules on Route Change
 When a client-side route change is detected (`location.href` changed):
@@ -356,7 +364,21 @@ When a client-side route change is detected (`location.href` changed):
 
 ---
 
-## 7. Dynamic Island Pill Presentation & Scoped Escape Dismissal
+## 7. Session Storage Access & Background Routing
+
+According to the official [Chrome Storage API Documentation](https://developer.chrome.com/docs/extensions/reference/api/storage#property-session):
+> *"By default, it's not exposed to content scripts, but this behavior can be changed by calling browser.storage.session.setAccessLevel()."*
+
+In Mozilla Firefox (supported since Firefox 115), `StorageArea.setAccessLevel()` is **not supported**.
+
+Therefore, directly accessing `storage.session` from content scripts is not cross-browser portable. All session suppression checks and writes are **routed through `background.js`**:
+1. When `detector.js` detects $\ge 3$ candidate prices, it messages `background.js` via `MSG.OFFER_REQUESTED`.
+2. `background.js` (which has direct unrestricted access to `chrome.storage.session`) checks whether the host is suppressed.
+3. When the user clicks `[Not now]` or presses scoped `Escape` in the pill, `content.js` sends `MSG.SET_SESSION_SUPPRESSION` to `background.js` to store the host suppression key in `chrome.storage.session`.
+
+---
+
+## 8. Dynamic Island Pill Presentation & Scoped Escape Dismissal
 
 ### State Machine & Visual Tokens
 The Dynamic Island pill strictly obeys the editorial tokens in [`DESIGN.md`](../../DESIGN.md):
@@ -390,7 +412,7 @@ The Dynamic Island pill strictly obeys the editorial tokens in [`DESIGN.md`](../
 
 ---
 
-## 8. Open Decisions for Repository Owner
+## 9. Open Decisions for Repository Owner
 
 1. **Pill Dragging Repositioning (`_setupDragging`)**:
    - `src/content/ui.js` currently implements pointer drag listeners (`_setupDragging`) that allow the user to click and drag the pill to custom coordinates on the screen.
@@ -399,7 +421,7 @@ The Dynamic Island pill strictly obeys the editorial tokens in [`DESIGN.md`](../
 
 ---
 
-## 9. Implementation Roadmap: Steps 03 to 08
+## 10. Implementation Roadmap: Steps 03 to 08
 
 All steps below are **PLANNED, not started**. Each step represents an isolated scope executed on its own branch, verified independently, and landed via standard merge commits.
 
@@ -433,9 +455,10 @@ All steps below are **PLANNED, not started**. Each step represents an isolated s
   - Create entrypoint `src/content/detector.js` implementing the detector flow (settling delay, `countCandidates`, threshold check, bounded observer, SPA navigation tracking).
   - Delete legacy auto-convert paths: remove `syncAutoConvertRules()` and delete `tabs.onUpdated` auto-convert trigger from `src/background.js`. Unregister legacy content script `'cc-autoconvert-sites'`.
   - Define `autoConvertAll` as a global default site mode fallback.
-  - Update `build.js` to compile `detector.js` as an independent lightweight bundle (~8–10 KB) in `dist/chrome/` and `dist/firefox/`.
+  - Update `build.js` to compile `detector.js` as an independent lightweight bundle in `dist/chrome/` and `dist/firefox/`.
   - Add static `content_scripts` registration in `build.js` manifests for `detector.js` (`all_frames: false`, `run_at: "document_idle"`).
   - Implement messaging in `src/shared/messaging.js` for offer display, acceptance, decline, and session suppression.
+  - Execute real SPA navigation verification (`[VERIFY IN STEP 05 on a real SPA]`).
 - **Acceptance Criteria**:
   - Manifest includes `detector.js` statically.
   - Exactly ONE conversion mechanism exists across the extension.
@@ -481,3 +504,12 @@ All steps below are **PLANNED, not started**. Each step represents an isolated s
 - **Acceptance Criteria**:
   - Playwright test suite passes in CI/local runs.
   - Real-world eBay smoke test passes with screenshots demonstrating detection, offer, conversion, and revert.
+
+---
+
+## Provenance
+- First commit SHA (PR #5): `b06fe31`
+- Last commit SHA (PR #5): `65b7856`
+- Merge commit SHA on Main: `c669025`
+- Subsequent commit on Main: `4e0481b` (local merge commit recording provenance; rectified under BUILD_PROTOCOL.md by step 02b PR)
+
