@@ -26,3 +26,6 @@ scratch/
 .idea/
 *.swp
 *.swo
+
+# Build output
+dist/

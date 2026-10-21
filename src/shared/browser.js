@@ -118,7 +118,7 @@ export async function requestOriginPermission(origin) {
 }
 
 /**
- * Injects content script into a tab if not already present.
+ * Injects content script into a tab top frame if not already present.
  */
 export async function injectContentScript(tabId) {
   const b = getBrowser();
@@ -127,13 +127,13 @@ export async function injectContentScript(tabId) {
   try {
     if (b.scripting && b.scripting.executeScript) {
       await b.scripting.executeScript({
-        target: { tabId },
+        target: { tabId, allFrames: false },
         files: ['content.js']
       });
       return true;
     } else if (b.tabs && b.tabs.executeScript) {
       return new Promise((resolve) => {
-        b.tabs.executeScript(tabId, { file: 'content.js' }, () => {
+        b.tabs.executeScript(tabId, { file: 'content.js', allFrames: false }, () => {
           resolve(!b.runtime.lastError);
         });
       });
@@ -142,4 +142,19 @@ export async function injectContentScript(tabId) {
     console.warn('[Browser] Script injection error:', err);
   }
   return false;
+}
+
+/**
+ * Ensures content script is injected into the top frame of a tab.
+ * Pings tab first with GET_PAGE_STATUS and injects only if no listener answers.
+ */
+export async function ensureInjected(tabId) {
+  if (!tabId) return false;
+  try {
+    const status = await sendTabMessage(tabId, { type: 'CC_GET_PAGE_STATUS' });
+    if (status !== null && status !== undefined) {
+      return true; // Already injected and listening
+    }
+  } catch {}
+  return await injectContentScript(tabId);
 }

@@ -7,7 +7,7 @@
 - **PR URL**: https://github.com/richmondsogo/currency-convertr/pull/8
 - **First Commit SHA**: `3a50930`
 - **Last Content Commit SHA**: `6752c0b`
-- **Merge Commit SHA**: `recorded in the step 05 branch`
+- **Merge Commit SHA on Main**: `db6be37`
 
 ---
 
@@ -175,4 +175,4 @@ All screenshots recorded in `docs/audits/2026-10-21-live-diagnosis/`:
 - **PR URL**: https://github.com/richmondsogo/currency-convertr/pull/8
 - **First Commit SHA**: `3a50930`
 - **Last Content Commit SHA**: `6752c0b`
-- **Merge Commit SHA on Main**: `recorded in the step 05 branch`
+- **Merge Commit SHA on Main**: `db6be37`

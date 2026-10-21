@@ -233,6 +233,17 @@
   border-color: #fafafa;
 }
 
+/* STOPGAP: Ensure native select options are legible on dark background */
+.cc-select option {
+  background-color: #18181b !important;
+  color: #fafafa !important;
+}
+
+.cc-select option:checked {
+  background-color: #27272a !important;
+  color: #ffffff !important;
+}
+
 .cc-select-arrow {
   position: absolute;
   right: 5px;

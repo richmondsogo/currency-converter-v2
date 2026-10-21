@@ -236,6 +236,17 @@ export const INLINE_UI_CSS = `
   border-color: #fafafa;
 }
 
+/* STOPGAP: Ensure native select options are legible on dark background */
+.cc-select option {
+  background-color: #18181b !important;
+  color: #fafafa !important;
+}
+
+.cc-select option:checked {
+  background-color: #27272a !important;
+  color: #ffffff !important;
+}
+
 .cc-select-arrow {
   position: absolute;
   right: 5px;
@@ -455,7 +466,14 @@ export class InPageUI {
 
   mount(cssContent = '') {
     const parent = this.doc ? (this.doc.body || this.doc.documentElement) : null;
-    if (!parent || this.rootContainer) return;
+    if (!parent) return;
+
+    // Never create a second #cc-dynamic-island-host in a document. Reuse or replace the existing one.
+    const existing = this.doc.getElementById('cc-dynamic-island-host');
+    if (existing) {
+      existing.remove();
+    }
+    this.rootContainer = null;
 
     this.rootContainer = this.doc.createElement('div');
     this.rootContainer.id = 'cc-dynamic-island-host';
@@ -522,7 +540,7 @@ export class InPageUI {
 
     // Status Dot (Glowing Emerald #10b981)
     const statusDot = this.doc.createElement('div');
-    statusDot.className = `cc-status-dot ${!this.isConverted && this.convertedCount === 0 ? 'cc-status-inactive' : ''}`;
+    statusDot.className = `cc-status-dot ${!this.isConverted ? 'cc-status-inactive' : ''}`;
     compact.appendChild(statusDot);
 
     // Currency Code: e.g. "NGN → USD" if sourceCurrency is known, else "USD"
@@ -846,7 +864,7 @@ export class InPageUI {
     const miniLabel = this.collapsedElement?.querySelector('.cc-mini-label');
 
     if (dot) {
-      dot.classList.toggle('cc-status-inactive', !this.isConverted && this.convertedCount === 0);
+      dot.classList.toggle('cc-status-inactive', !this.isConverted);
     }
     if (btnOriginal) {
       btnOriginal.classList.toggle('active', !this.isConverted);

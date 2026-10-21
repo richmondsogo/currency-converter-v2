@@ -130,8 +130,11 @@ Currency Convertr requests the following permissions in `manifest.json`:
 ### Prerequisites
 - Node.js v18.0.0 or higher
 - Google Chrome, Microsoft Edge, Brave, or Mozilla Firefox
+- Playwright Chromium (for E2E browser tests): `npx playwright install chromium`
 
 ### 1. Build the Extension
+> **Important**: `dist/` is not tracked in git. You must run `npm run build`, then load `dist/chrome`.
+
 ```bash
 # Clone the repository
 git clone https://github.com/richmondsogo/currency-convertr.git
@@ -140,7 +143,10 @@ cd currency-convertr
 # Install dependencies
 npm install
 
-# Compile Chrome and Firefox distribution bundles
+# Install Playwright browser for E2E tests
+npx playwright install chromium
+
+# Compile Chrome and Firefox distribution bundles (run npm run build, then load dist/chrome; dist/ is not tracked)
 npm run build
 ```
 
@@ -148,22 +154,25 @@ npm run build
 1. Open your browser and navigate to `chrome://extensions/` (or `edge://extensions/`).
 2. Toggle **Developer mode** on in the top-right corner.
 3. Click **Load unpacked**.
-4. Select the `dist/chrome` folder.
+4. Select the `dist/chrome` folder (run `npm run build` first; `dist/` is not tracked).
 
 ### 3. Load into Mozilla Firefox
 1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`.
 2. Click **Load Temporary Add-on...**.
-3. Select `dist/firefox/manifest.json`.
+3. Select `dist/firefox/manifest.json` (run `npm run build` first; `dist/` is not tracked).
 
 ---
 
 ## Testing & Verification
 
-The repository includes a comprehensive automated test suite with 51 unit and DOM integration tests:
+The repository includes both unit tests and a real-browser Playwright E2E harness:
 
 ```bash
-# Run all unit, DOM, and build tests
+# Run unit and DOM integration tests
 npm test
+
+# Run real-browser E2E tests (Chrome for Testing)
+npm run test:e2e
 
 # Lint Firefox extension for Mozilla AMO compliance
 npm run lint:firefox
