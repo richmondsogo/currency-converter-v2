@@ -2531,6 +2531,28 @@
       });
     });
   }
+  async function injectContentScript(tabId) {
+    const b = getBrowser();
+    if (!b || !tabId) return false;
+    try {
+      if (b.scripting && b.scripting.executeScript) {
+        await b.scripting.executeScript({
+          target: { tabId },
+          files: ["content.js"]
+        });
+        return true;
+      } else if (b.tabs && b.tabs.executeScript) {
+        return new Promise((resolve) => {
+          b.tabs.executeScript(tabId, { file: "content.js" }, () => {
+            resolve(!b.runtime.lastError);
+          });
+        });
+      }
+    } catch (err) {
+      console.warn("[Browser] Script injection error:", err);
+    }
+    return false;
+  }
 
   // src/popup/popup.js
   var api2 = getBrowser();
@@ -2541,23 +2563,24 @@
   var selectedTargetCurrency = "USD";
   var isPageConverted = false;
   var allCurrenciesList = [];
-  var btnConvertToggle = document.getElementById("btn-convert-toggle");
-  var liveStatusEl = document.getElementById("live-status");
-  var unsupportedNoticeEl = document.getElementById("unsupported-notice");
-  var mainControlsEl = document.getElementById("main-controls");
-  var pickerBtn = document.getElementById("picker-to-btn");
-  var selectedTargetText = document.getElementById("selected-target-text");
-  var currencyDropdown = document.getElementById("currency-dropdown");
-  var currencySearchInput = document.getElementById("currency-search-input");
-  var currencyOptionsList = document.getElementById("currency-options-list");
-  var toggleAlwaysSite = document.getElementById("toggle-always-site");
-  var toggleNeverSite = document.getElementById("toggle-never-site");
-  var siteCurrencyOverride = document.getElementById("site-currency-override");
-  var currentDomainLabel = document.getElementById("current-domain-label");
-  var ratesFreshnessText = document.getElementById("rates-freshness-text");
-  var btnRetryRates = document.getElementById("btn-retry-rates");
-  var btnOpenOptions = document.getElementById("btn-open-options");
-  var linkOptions = document.getElementById("link-options");
+  var doc = typeof document !== "undefined" ? document : null;
+  var btnConvertToggle = doc?.getElementById("btn-convert-toggle");
+  var liveStatusEl = doc?.getElementById("live-status");
+  var unsupportedNoticeEl = doc?.getElementById("unsupported-notice");
+  var mainControlsEl = doc?.getElementById("main-controls");
+  var pickerBtn = doc?.getElementById("picker-to-btn");
+  var selectedTargetText = doc?.getElementById("selected-target-text");
+  var currencyDropdown = doc?.getElementById("currency-dropdown");
+  var currencySearchInput = doc?.getElementById("currency-search-input");
+  var currencyOptionsList = doc?.getElementById("currency-options-list");
+  var toggleAlwaysSite = doc?.getElementById("toggle-always-site");
+  var toggleNeverSite = doc?.getElementById("toggle-never-site");
+  var siteCurrencyOverride = doc?.getElementById("site-currency-override");
+  var currentDomainLabel = doc?.getElementById("current-domain-label");
+  var ratesFreshnessText = doc?.getElementById("rates-freshness-text");
+  var btnRetryRates = doc?.getElementById("btn-retry-rates");
+  var btnOpenOptions = doc?.getElementById("btn-open-options");
+  var linkOptions = doc?.getElementById("link-options");
   function openOptionsPage(e) {
     if (e) e.preventDefault();
     if (api2 && api2.runtime && api2.runtime.openOptionsPage) {
@@ -2566,8 +2589,8 @@
       api2.tabs.create({ url: api2.runtime.getURL("options/options.html") });
     }
   }
-  btnOpenOptions.addEventListener("click", openOptionsPage);
-  linkOptions.addEventListener("click", openOptionsPage);
+  btnOpenOptions?.addEventListener("click", openOptionsPage);
+  linkOptions?.addEventListener("click", openOptionsPage);
   function applyTheme(theme) {
     if (theme === "dark") {
       document.documentElement.setAttribute("data-theme", "dark");
@@ -2577,44 +2600,77 @@
       document.documentElement.removeAttribute("data-theme");
     }
   }
+  function isRestrictedPage(url) {
+    if (!url || typeof url !== "string") return false;
+    const trimmed = url.trim();
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      return trimmed.includes("chromewebstore.google.com") || trimmed.includes("addons.mozilla.org");
+    }
+    return /^(chrome|edge|brave|about|moz-extension|chrome-extension|view-source|chrome-error):/i.test(trimmed) || trimmed.includes("chromewebstore.google.com") || trimmed.includes("addons.mozilla.org");
+  }
+  var isRestrictedUrl = isRestrictedPage;
+  async function sendTabMessageWithRetry(tabId, message, maxAttempts = 3) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const response = await sendTabMessage(tabId, message);
+        if (response !== null && response !== void 0) {
+          return response;
+        }
+      } catch {
+      }
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    }
+    return null;
+  }
   async function initPopup() {
-    currentTab = await getActiveTab();
     allCurrenciesList = getAllCurrencies({ includeCrypto: false });
     populateOverrideDropdown();
-    if (!currentTab || !currentTab.url) {
-      showUnsupportedState();
-      return;
-    }
-    const url = currentTab.url;
-    if (url.startsWith("chrome://") || url.startsWith("chrome-extension://") || url.startsWith("moz-extension://") || url.startsWith("about:") || url.startsWith("edge://") || url.includes("addons.mozilla.org") || url.includes("chromewebstore.google.com")) {
-      showUnsupportedState();
-      return;
-    }
-    try {
-      const parsed = new URL(url);
-      currentHostname = parsed.hostname;
-      currentOrigin = parsed.origin;
-      currentDomainLabel.textContent = currentHostname;
-    } catch {
-      showUnsupportedState();
-      return;
-    }
-    try {
-      const settings = await sendMessage({ type: MSG.GET_SETTINGS });
-      if (settings) {
-        currentSettings = settings;
-        applyTheme(settings.theme);
-        selectedTargetCurrency = settings.lastUsedTarget || settings.targetCurrency || "USD";
-        updateSelectedTargetUI(selectedTargetCurrency);
-        initSiteRulesUI();
-      }
-    } catch (err) {
-      console.warn("[Popup] Could not load settings:", err);
-    }
-    await loadRatesStatus();
-    await checkPageStatus();
     setupCurrencyPicker();
     setupActionListeners();
+    const ratesPromise = loadRatesStatus();
+    const settingsPromise = (async () => {
+      try {
+        const settings = await sendMessage({ type: MSG.GET_SETTINGS });
+        if (settings) {
+          currentSettings = settings;
+          applyTheme(settings.theme);
+          selectedTargetCurrency = settings.lastUsedTarget || settings.targetCurrency || "USD";
+          updateSelectedTargetUI(selectedTargetCurrency);
+        }
+      } catch (err) {
+        console.warn("[Popup] Could not load settings:", err);
+      }
+    })();
+    await Promise.allSettled([ratesPromise, settingsPromise]);
+    try {
+      currentTab = await getActiveTab();
+    } catch (err) {
+      console.warn("[Popup] Could not get active tab:", err);
+    }
+    const tabUrl = currentTab?.url;
+    const isRestricted = isRestrictedPage(tabUrl);
+    if (isRestricted) {
+      showUnsupportedState();
+      return;
+    }
+    if (tabUrl) {
+      try {
+        const parsed = new URL(tabUrl);
+        currentHostname = parsed.hostname.replace(/^www\./, "");
+        currentOrigin = parsed.origin;
+        currentDomainLabel.textContent = currentHostname;
+      } catch {
+        currentHostname = "";
+        currentDomainLabel.textContent = "Current tab";
+      }
+    } else {
+      currentHostname = "";
+      currentDomainLabel.textContent = "Current tab";
+    }
+    initSiteRulesUI();
+    await checkPageStatus();
   }
   function showUnsupportedState() {
     unsupportedNoticeEl.style.display = "flex";
@@ -2667,15 +2723,22 @@
       btnRetryRates.style.display = "inline-block";
     }
   }
-  btnRetryRates.addEventListener("click", async () => {
+  btnRetryRates?.addEventListener("click", async () => {
     await loadRatesStatus();
   });
   async function checkPageStatus() {
     if (!currentTab || !currentTab.id) return;
+    if (isRestrictedPage(currentTab.url)) return;
     try {
-      const status = await sendTabMessage(currentTab.id, { type: MSG.GET_PAGE_STATUS });
+      let status = await sendTabMessage(currentTab.id, { type: MSG.GET_PAGE_STATUS });
+      if (!status) {
+        await injectContentScript(currentTab.id);
+        await new Promise((r) => setTimeout(r, 100));
+        status = await sendTabMessage(currentTab.id, { type: MSG.GET_PAGE_STATUS });
+      }
       if (status && status.isConverted) {
         isPageConverted = true;
+        btnConvertToggle.disabled = false;
         btnConvertToggle.textContent = "Show original";
         btnConvertToggle.classList.add("active-revert");
         liveStatusEl.classList.add("converted");
@@ -2686,6 +2749,7 @@
         }
       } else {
         isPageConverted = false;
+        btnConvertToggle.disabled = false;
         btnConvertToggle.textContent = "Convert this page";
         btnConvertToggle.classList.remove("active-revert");
         liveStatusEl.classList.remove("converted", "converting");
@@ -2693,6 +2757,7 @@
       }
     } catch {
       isPageConverted = false;
+      btnConvertToggle.disabled = false;
       btnConvertToggle.textContent = "Convert this page";
       btnConvertToggle.classList.remove("active-revert");
       liveStatusEl.classList.remove("converted", "converting");
@@ -2885,46 +2950,61 @@
   }
   async function triggerConvert(targetCur) {
     if (!currentTab || !currentTab.id) return;
+    if (isRestrictedPage(currentTab.url)) {
+      liveStatusEl.classList.remove("converting", "converted");
+      liveStatusEl.textContent = "Cannot run on browser system pages";
+      return;
+    }
     btnConvertToggle.disabled = true;
     liveStatusEl.classList.remove("converted");
     liveStatusEl.classList.add("converting");
     liveStatusEl.textContent = "Scanning and converting...";
     try {
-      if (api2.scripting && api2.scripting.executeScript) {
-        await api2.scripting.executeScript({
-          target: { tabId: currentTab.id, allFrames: true },
-          files: ["content.js"]
-        }).catch(() => {
+      await injectContentScript(currentTab.id);
+      const ratesData = await sendMessage({ type: MSG.GET_RATES });
+      const siteRule = currentSettings?.perSite && currentHostname && currentSettings.perSite[currentHostname];
+      const convertPayload = {
+        manual: true,
+        targetCurrency: targetCur,
+        ratesTable: ratesData ? ratesData.rates : null,
+        rateDate: ratesData ? ratesData.date : null,
+        provider: ratesData ? ratesData.provider : null,
+        displayMode: currentSettings?.displayMode || "replace",
+        roundWhole: currentSettings?.roundWhole || false,
+        showInPageBar: currentSettings?.showInPageBar !== false,
+        siteOverride: siteRule?.assumedCurrency || null
+      };
+      let response = await sendTabMessageWithRetry(currentTab.id, {
+        type: MSG.CONVERT_PAGE,
+        payload: convertPayload
+      });
+      if (!response) {
+        await injectContentScript(currentTab.id);
+        await new Promise((r) => setTimeout(r, 100));
+        response = await sendTabMessageWithRetry(currentTab.id, {
+          type: MSG.CONVERT_PAGE,
+          payload: convertPayload
         });
       }
-      const ratesData = await sendMessage({ type: MSG.GET_RATES });
-      const siteRule = currentSettings?.perSite && currentSettings.perSite[currentHostname];
-      const response = await sendTabMessage(currentTab.id, {
-        type: MSG.CONVERT_PAGE,
-        payload: {
-          targetCurrency: targetCur,
-          ratesTable: ratesData.rates,
-          rateDate: ratesData.date,
-          provider: ratesData.provider,
-          displayMode: currentSettings?.displayMode || "replace",
-          roundWhole: currentSettings?.roundWhole || false,
-          showInPageBar: currentSettings?.showInPageBar !== false,
-          siteOverride: siteRule?.assumedCurrency || null
-        }
-      });
       liveStatusEl.classList.remove("converting");
       if (response && response.success) {
-        isPageConverted = true;
-        btnConvertToggle.textContent = "Show original";
-        btnConvertToggle.classList.add("active-revert");
-        liveStatusEl.classList.add("converted");
-        liveStatusEl.textContent = `${response.count} prices converted \xB7 Rates: ${ratesData.provider || "ECB"}`;
-        if (response.count === 0) {
-          liveStatusEl.textContent = "No convertible prices found on this page";
+        const count = response.convertedCount !== void 0 ? response.convertedCount : response.count;
+        if (count === 0 || response.alreadyTarget) {
+          isPageConverted = false;
+          btnConvertToggle.textContent = "Convert this page";
+          btnConvertToggle.classList.remove("active-revert");
+          liveStatusEl.classList.remove("converted");
+          liveStatusEl.textContent = `Page is already in ${targetCur}`;
+        } else {
+          isPageConverted = true;
+          btnConvertToggle.textContent = "Show original";
+          btnConvertToggle.classList.add("active-revert");
+          liveStatusEl.classList.add("converted");
+          liveStatusEl.textContent = `${count} prices converted \xB7 Rates: ${ratesData?.provider || "ECB"}`;
         }
       } else {
         liveStatusEl.classList.remove("converted");
-        liveStatusEl.textContent = "Conversion failed";
+        liveStatusEl.textContent = response?.error ? `Conversion error: ${response.error}` : "Conversion failed";
       }
     } catch (err) {
       liveStatusEl.classList.remove("converting", "converted");
@@ -2937,7 +3017,12 @@
     if (!currentTab || !currentTab.id) return;
     btnConvertToggle.disabled = true;
     try {
-      const response = await sendTabMessage(currentTab.id, { type: MSG.REVERT_PAGE });
+      let response = await sendTabMessage(currentTab.id, { type: MSG.REVERT_PAGE });
+      if (!response) {
+        await injectContentScript(currentTab.id);
+        await new Promise((r) => setTimeout(r, 100));
+        response = await sendTabMessage(currentTab.id, { type: MSG.REVERT_PAGE });
+      }
       liveStatusEl.classList.remove("converting", "converted");
       if (response && response.success) {
         isPageConverted = false;
@@ -2954,5 +3039,7 @@
       btnConvertToggle.disabled = false;
     }
   }
-  document.addEventListener("DOMContentLoaded", initPopup);
+  if (doc) {
+    doc.addEventListener("DOMContentLoaded", initPopup);
+  }
 })();

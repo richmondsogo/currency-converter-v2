@@ -2922,8 +2922,8 @@
       if (s === "b" || s === "bn") return 1e9;
       return 1;
     }
-    const prefixRegex = /(?:(\bfrom\s+)?(\(?)(\b-\s*|-\s*)?)?(CAD\$|CA\$|C\$|AUD\$|AU\$|A\$|NZ\$|HK\$|SG\$|S\$|US\$|U\.S\.\$|R\$|MX\$|Mex\$|COL\$|CLP\$|AR\$|GH₵|GHc|KSh|Ksh|CHF|SFr|Fr\.|€|£|¥|₦|₹|₩|zł|Kč|Ft|₺|₽|₴|₪|฿|₫|₱|RM|Rp|৳|\$|kr|\b[A-Z]{3}\b)\s*(\d(?:[\d,. \u00A0\u202F']*\d)?)(?:[\s\u00A0\u202F]*(k|m|b|bn))?(\)?)/gi;
-    const suffixRegex = /(?:(\bfrom\s+)?(\(?)(\b-\s*|-\s*)?)?(\d(?:[\d,. \u00A0\u202F']*\d)?)(?:[\s\u00A0\u202F]*(k|m|b|bn))?\s*(CAD\$|CA\$|C\$|AUD\$|AU\$|A\$|NZ\$|HK\$|SG\$|S\$|US\$|U\.S\.\$|R\$|MX\$|Mex\$|COL\$|CLP\$|AR\$|GH₵|GHc|KSh|Ksh|CHF|SFr|Fr\.|€|£|¥|₦|₹|₩|zł|Kč|Ft|₺|₽|₴|₪|฿|₫|₱|RM|Rp|৳|\$|kr|\b[A-Z]{3}\b)(\)?)/gi;
+    const prefixRegex = /(?:(\bfrom\s+)|(\()\s*(-)?|((?<!\d)-(?!\s)))?(CAD\$|CA\$|C\$|AUD\$|AU\$|A\$|NZ\$|HK\$|SG\$|S\$|US\$|U\.S\.\$|R\$|MX\$|Mex\$|COL\$|CLP\$|AR\$|GH₵|GHc|KSh|Ksh|CHF|SFr|Fr\.|€|£|¥|₦|₹|₩|zł|Kč|Ft|₺|₽|₴|₪|฿|₫|₱|RM|Rp|৳|\$|kr|\b[A-Z]{3}\b)\s*(\d(?:[\d,. \u00A0\u202F']*\d)?)(?:[\s\u00A0\u202F]*(k|m|b|bn))?(\)?)/gi;
+    const suffixRegex = /(?:(\bfrom\s+)|(\()\s*(-)?|((?<!\d)-(?!\s)))?(\d(?:[\d,. \u00A0\u202F']*\d)?)(?:[\s\u00A0\u202F]*(k|m|b|bn))?\s*(CAD\$|CA\$|C\$|AUD\$|AU\$|A\$|NZ\$|HK\$|SG\$|S\$|US\$|U\.S\.\$|R\$|MX\$|Mex\$|COL\$|CLP\$|AR\$|GH₵|GHc|KSh|Ksh|CHF|SFr|Fr\.|€|£|¥|₦|₹|₩|zł|Kč|Ft|₺|₽|₴|₪|฿|₫|₱|RM|Rp|৳|\$|kr|\b[A-Z]{3}\b)(\)?)/gi;
     const matchedRanges = [];
     function isOverlapping(start, end) {
       return matchedRanges.some(([s, e]) => Math.max(start, s) < Math.min(end, e));
@@ -2933,18 +2933,19 @@
       const raw = match[0];
       const fromPrefix = match[1] || "";
       const openParen = match[2] || "";
-      const minusSign = match[3] || "";
-      const sym = match[4];
-      const numPart = match[5];
-      const multiplierSuffix = match[6] || "";
-      const closeParen = match[7] || "";
+      const minusInParen = match[3] || "";
+      const minusNoParen = match[4] || "";
+      const sym = match[5];
+      const numPart = match[6];
+      const multiplierSuffix = match[7] || "";
+      const closeParen = match[8] || "";
       if (/^[A-Z]{3}$/i.test(sym) && !CURRENCIES_DATA[sym.toUpperCase()]) {
         continue;
       }
       const multiplier = getMultiplier(multiplierSuffix);
       const amount = parseNumberString(numPart, multiplier);
       if (amount === null || isNaN(amount) || amount <= 0) continue;
-      const isNegative = Boolean(minusSign || openParen && closeParen);
+      const isNegative = Boolean(minusInParen || minusNoParen || openParen && closeParen);
       const currency = detectCurrency(sym, context);
       const startIndex = match.index;
       const endIndex = match.index + raw.length;
@@ -2967,11 +2968,12 @@
       const raw = match[0];
       const fromPrefix = match[1] || "";
       const openParen = match[2] || "";
-      const minusSign = match[3] || "";
-      const numPart = match[4];
-      const multiplierSuffix = match[5] || "";
-      const sym = match[6];
-      const closeParen = match[7] || "";
+      const minusInParen = match[3] || "";
+      const minusNoParen = match[4] || "";
+      const numPart = match[5];
+      const multiplierSuffix = match[6] || "";
+      const sym = match[7];
+      const closeParen = match[8] || "";
       if (/^[A-Z]{3}$/i.test(sym) && !CURRENCIES_DATA[sym.toUpperCase()]) {
         continue;
       }
@@ -2981,7 +2983,7 @@
       const multiplier = getMultiplier(multiplierSuffix);
       const amount = parseNumberString(numPart, multiplier);
       if (amount === null || isNaN(amount) || amount <= 0) continue;
-      const isNegative = Boolean(minusSign || openParen && closeParen);
+      const isNegative = Boolean(minusInParen || minusNoParen || openParen && closeParen);
       const currency = detectCurrency(sym, context);
       const startIndex = match.index;
       const endIndex = match.index + raw.length;
@@ -3133,16 +3135,22 @@
       this.convertedElements = /* @__PURE__ */ new Set();
       this.convertedTextNodes = /* @__PURE__ */ new Set();
       this.conversionMetadata = /* @__PURE__ */ new WeakMap();
+      this.detectedCurrencies = /* @__PURE__ */ new Set();
+      this.primarySourceCurrency = null;
       this._initializePageContext();
     }
     _initializePageContext() {
       if (!this.doc) return;
       const inferred = inferPageCurrency(this.doc);
-      if (inferred && !this.context.pageContextISO) {
-        this.context.pageContextISO = inferred;
-      }
-      if (inferred && !this.context.structuredHint) {
-        this.context.structuredHint = inferred;
+      if (inferred) {
+        this.detectedCurrencies.add(inferred);
+        if (!this.primarySourceCurrency) this.primarySourceCurrency = inferred;
+        if (!this.context.pageContextISO) {
+          this.context.pageContextISO = inferred;
+        }
+        if (!this.context.structuredHint) {
+          this.context.structuredHint = inferred;
+        }
       }
       if (!this.context.tld && this.doc.location && this.doc.location.hostname) {
         this.context.tld = this.doc.location.hostname;
@@ -3310,6 +3318,8 @@
       if (!sourceISO || sourceISO === targetISO) {
         return false;
       }
+      this.detectedCurrencies.add(sourceISO);
+      if (!this.primarySourceCurrency) this.primarySourceCurrency = sourceISO;
       let convertedAmount;
       let rateUsed;
       try {
@@ -3375,6 +3385,10 @@
         let lastIndex = 0;
         for (const p of validPrices) {
           const sourceISO = p.currency ? p.currency.toUpperCase() : null;
+          if (sourceISO) {
+            this.detectedCurrencies.add(sourceISO);
+            if (!this.primarySourceCurrency) this.primarySourceCurrency = sourceISO;
+          }
           let convertedAmount;
           let rateUsed;
           try {
@@ -3416,6 +3430,10 @@
       for (let i = validPrices.length - 1; i >= 0; i--) {
         const p = validPrices[i];
         const sourceISO = p.currency ? p.currency.toUpperCase() : null;
+        if (sourceISO) {
+          this.detectedCurrencies.add(sourceISO);
+          if (!this.primarySourceCurrency) this.primarySourceCurrency = sourceISO;
+        }
         let convertedAmount;
         let rateUsed;
         try {
@@ -3539,6 +3557,369 @@
   };
 
   // src/content/ui.js
+  var INLINE_UI_CSS = `
+:host {
+  all: initial;
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.cc-island-container {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translate3d(-50%, 0, 0);
+  pointer-events: auto;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2147483647;
+}
+
+/* 1. Apple Dynamic Island Capsule */
+.cc-dynamic-island {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 14px;
+  background-color: #09090b;
+  color: #fafafa;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 2px 6px -1px rgba(0, 0, 0, 0.25);
+  cursor: default;
+  overflow: hidden;
+  will-change: transform, opacity;
+  transform-origin: center top;
+  transition:
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 150ms ease,
+    opacity 200ms ease;
+}
+
+.cc-dynamic-island:hover,
+.cc-dynamic-island:focus-within,
+.cc-dynamic-island.cc-expanded {
+  transform: scale(1.02);
+  box-shadow: 0 14px 32px -4px rgba(0, 0, 0, 0.55), 0 4px 10px -1px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+/* Compact Inner Section */
+.cc-island-compact {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+/* Status Dot: Glowing Emerald (#10b981) */
+.cc-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.65);
+  flex-shrink: 0;
+  transition: background-color 200ms ease, box-shadow 200ms ease;
+}
+
+.cc-status-dot.cc-status-inactive {
+  background-color: #71717a;
+  box-shadow: none;
+}
+
+/* Currency Code */
+.cc-currency-code {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: #fafafa;
+  letter-spacing: -0.01em;
+}
+
+.cc-count-sep {
+  font-size: 11px;
+  color: #71717a;
+  user-select: none;
+}
+
+/* Count Badge */
+.cc-count-badge {
+  font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #e4e4e7;
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 1px 6px;
+  border-radius: 9999px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Expandable Grid Track (0fr -> 1fr zero-jank hardware morph) */
+.cc-island-expandable {
+  display: grid;
+  grid-template-columns: 0fr;
+  transition: grid-template-columns 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+}
+
+.cc-dynamic-island:hover .cc-island-expandable,
+.cc-dynamic-island:focus-within .cc-island-expandable,
+.cc-dynamic-island.cc-expanded .cc-island-expandable {
+  grid-template-columns: 1fr;
+}
+
+.cc-island-expandable-content {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 10px;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  white-space: nowrap;
+}
+
+.cc-dynamic-island:hover .cc-island-expandable-content,
+.cc-dynamic-island:focus-within .cc-island-expandable-content,
+.cc-dynamic-island.cc-expanded .cc-island-expandable-content {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Live Exchange Rate */
+.cc-live-rate {
+  font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 450;
+  color: #a1a1aa;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Tactile Segmented Control: [ Original | Converted ] */
+.cc-segmented {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.cc-segment-btn {
+  background: transparent;
+  border: none;
+  border-radius: 9999px;
+  padding: 2px 8px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: #a1a1aa;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
+  outline: none;
+}
+
+.cc-segment-btn:hover {
+  color: #fafafa;
+}
+
+.cc-segment-btn.active {
+  background: #27272a;
+  color: #fafafa;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.cc-segment-btn:focus-visible {
+  outline: 1.5px solid #fafafa;
+  outline-offset: 1px;
+}
+
+/* Quick Currency Select Dropdown inside Island */
+.cc-select-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.cc-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fafafa;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  height: 22px;
+  padding: 0 16px 0 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 140ms ease;
+}
+
+.cc-select:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.cc-select:focus-visible {
+  border-color: #fafafa;
+}
+
+.cc-select-arrow {
+  position: absolute;
+  right: 5px;
+  pointer-events: none;
+  color: #a1a1aa;
+  display: flex;
+  align-items: center;
+}
+
+/* Clean Dismiss / Close Button */
+.cc-dismiss-btn {
+  background: transparent;
+  border: none;
+  color: #71717a;
+  padding: 4px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease, transform 140ms ease;
+  outline: none;
+}
+
+.cc-dismiss-btn:hover {
+  color: #fafafa;
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: scale(1.1);
+}
+
+.cc-dismiss-btn:active {
+  transform: scale(0.92);
+}
+
+.cc-dismiss-btn:focus-visible {
+  outline: 1.5px solid #fafafa;
+}
+
+/* Collapsed Mini Pill */
+.cc-collapsed-pill {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  background-color: #09090b;
+  color: #fafafa;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.cc-collapsed-pill:hover {
+  transform: scale(1.05);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+/* 2. Precision OLED Hover Tooltip */
+.cc-tooltip {
+  position: fixed;
+  display: none;
+  flex-direction: column;
+  background: #09090b;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: #fafafa;
+  font-size: 11.5px;
+  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 2147483647;
+  max-width: 280px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.cc-tooltip.visible {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.cc-tooltip-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #fafafa;
+  margin-bottom: 2px;
+  letter-spacing: -0.01em;
+}
+
+.cc-tooltip-sub {
+  font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: #a1a1aa;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.cc-tooltip-caret {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #09090b;
+  border-right: 1px solid rgba(255, 255, 255, 0.14);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  transform: rotate(45deg);
+  bottom: -4px;
+  left: 50%;
+  margin-left: -3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-dynamic-island,
+  .cc-island-expandable,
+  .cc-island-expandable-content,
+  .cc-collapsed-pill,
+  .cc-tooltip {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+}
+`;
   function createSvg(doc, width, height, viewBox, strokeWidth, paths = [], circles = []) {
     const svg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("width", String(width));
@@ -3570,6 +3951,7 @@
     constructor({
       doc = typeof document !== "undefined" ? document : null,
       targetCurrency = "USD",
+      sourceCurrency = null,
       isConverted: isConverted2 = true,
       convertedCount = 0,
       rateDate: rateDate2 = null,
@@ -3582,6 +3964,7 @@
     } = {}) {
       this.doc = doc;
       this.targetCurrency = targetCurrency;
+      this.sourceCurrency = sourceCurrency;
       this.isConverted = isConverted2;
       this.convertedCount = convertedCount;
       this.rateDate = rateDate2;
@@ -3599,8 +3982,6 @@
       this.tooltipElement = null;
       this.isDismissedForSession = false;
       this.isCollapsed = false;
-      this._idleTimer = null;
-      this._idleDelay = 3500;
       this.isDragging = false;
       this.dragStartX = 0;
       this.dragStartY = 0;
@@ -3618,14 +3999,16 @@
       }
     }
     mount(cssContent = "") {
-      if (!this.doc || !this.doc.body || this.rootContainer) return;
+      const parent = this.doc ? this.doc.body || this.doc.documentElement : null;
+      if (!parent || this.rootContainer) return;
       this.rootContainer = this.doc.createElement("div");
       this.rootContainer.id = "cc-dynamic-island-host";
       this.rootContainer.setAttribute("data-cc-ignore", "true");
       this.shadowRoot = this.rootContainer.attachShadow({ mode: "open" });
-      if (cssContent) {
+      const effectiveCss = cssContent || INLINE_UI_CSS;
+      if (effectiveCss) {
         const styleEl = this.doc.createElement("style");
-        styleEl.textContent = cssContent;
+        styleEl.textContent = effectiveCss;
         this.shadowRoot.appendChild(styleEl);
       }
       this.barContainer = this.doc.createElement("div");
@@ -3638,9 +4021,8 @@
       this.tooltipElement = this._buildTooltip();
       this.barContainer.appendChild(this.tooltipElement);
       this.shadowRoot.appendChild(this.barContainer);
-      this.doc.body.appendChild(this.rootContainer);
+      parent.appendChild(this.rootContainer);
       this._setupDragging();
-      this._setupIdleAutoFade();
       if (this.isDismissedForSession) {
         this.barElement.style.display = "none";
         this.collapsedElement.style.display = "none";
@@ -3664,11 +4046,11 @@
       const compact = this.doc.createElement("div");
       compact.className = "cc-island-compact";
       const statusDot = this.doc.createElement("div");
-      statusDot.className = `cc-status-dot ${!this.isConverted ? "cc-status-inactive" : ""}`;
+      statusDot.className = `cc-status-dot ${!this.isConverted && this.convertedCount === 0 ? "cc-status-inactive" : ""}`;
       compact.appendChild(statusDot);
       const codeSpan = this.doc.createElement("span");
       codeSpan.className = "cc-currency-code";
-      codeSpan.textContent = this.targetCurrency;
+      codeSpan.textContent = this.sourceCurrency && this.sourceCurrency !== this.targetCurrency ? `${this.sourceCurrency} \u2192 ${this.targetCurrency}` : this.targetCurrency;
       compact.appendChild(codeSpan);
       const sep = this.doc.createElement("span");
       sep.className = "cc-count-sep cc-sep";
@@ -3677,8 +4059,7 @@
       compact.appendChild(sep);
       const countBadge = this.doc.createElement("span");
       countBadge.className = "cc-count-badge";
-      countBadge.textContent = String(this.convertedCount || 0);
-      if (!this.convertedCount) countBadge.style.display = "none";
+      countBadge.textContent = String(this.convertedCount !== void 0 ? this.convertedCount : 0);
       compact.appendChild(countBadge);
       island.appendChild(compact);
       const expandable = this.doc.createElement("div");
@@ -3687,8 +4068,8 @@
       expandableContent.className = "cc-island-expandable-content";
       const rateSpan = this.doc.createElement("span");
       rateSpan.className = "cc-live-rate";
-      rateSpan.textContent = this.rateDate ? `${this.rateDate}` : "";
-      if (!this.rateDate) rateSpan.style.display = "none";
+      rateSpan.textContent = this.rateDate ? `${this.rateDate}` : this.provider ? `${this.provider}` : "";
+      if (!this.rateDate && !this.provider) rateSpan.style.display = "none";
       expandableContent.appendChild(rateSpan);
       const segmented = this.doc.createElement("div");
       segmented.className = "cc-segmented";
@@ -3730,7 +4111,6 @@
       expandableContent.appendChild(segmented);
       const selectWrapper = this.doc.createElement("div");
       selectWrapper.className = "cc-select-wrapper";
-      selectWrapper.style.display = "none";
       const select = this.doc.createElement("select");
       select.className = "cc-select";
       select.setAttribute("aria-label", "Change target currency");
@@ -3751,7 +4131,17 @@
           if (this.onChangeCurrency) this.onChangeCurrency(newCur);
         }
       });
+      const selectArrow = createSvg(
+        this.doc,
+        8,
+        8,
+        "0 0 24 24",
+        2.5,
+        [{ d: "m6 9 6 6 6-6" }]
+      );
+      selectArrow.setAttribute("class", "cc-select-arrow");
       selectWrapper.appendChild(select);
+      selectWrapper.appendChild(selectArrow);
       expandableContent.appendChild(selectWrapper);
       const btnDismiss = this.doc.createElement("button");
       btnDismiss.className = "cc-dismiss-btn cc-btn-close";
@@ -3760,10 +4150,10 @@
       btnDismiss.setAttribute("aria-label", "Dismiss price toolbar");
       const closeSvg = createSvg(
         this.doc,
-        10,
-        10,
+        11,
+        11,
         "0 0 24 24",
-        2.5,
+        2.2,
         [
           { d: "M18 6 6 18" },
           { d: "m6 6 12 12" }
@@ -3792,38 +4182,12 @@
       mini.appendChild(dot);
       const label = this.doc.createElement("span");
       label.className = "cc-mini-label";
-      label.textContent = `${this.convertedCount || 0} ${this.targetCurrency}`;
+      label.textContent = `${this.convertedCount !== void 0 ? this.convertedCount : 0} ${this.targetCurrency}`;
       mini.appendChild(label);
       mini.addEventListener("click", () => {
         this.toggleCollapse();
       });
       return mini;
-    }
-    _setupIdleAutoFade() {
-      if (!this.barElement) return;
-      const resetTimer = () => {
-        if (this._idleTimer) {
-          clearTimeout(this._idleTimer);
-          this._idleTimer = null;
-        }
-        this.barElement.classList.remove("cc-idle-fade");
-        this._idleTimer = setTimeout(() => {
-          if (!this.isCollapsed && this.barElement.style.display !== "none") {
-            this.barElement.classList.add("cc-idle-fade");
-          }
-        }, this._idleDelay);
-      };
-      this.barElement.addEventListener("pointerenter", () => {
-        if (this._idleTimer) clearTimeout(this._idleTimer);
-        this.barElement.classList.remove("cc-idle-fade");
-      });
-      this.barElement.addEventListener("focusin", () => {
-        if (this._idleTimer) clearTimeout(this._idleTimer);
-        this.barElement.classList.remove("cc-idle-fade");
-      });
-      this.barElement.addEventListener("pointerleave", resetTimer);
-      this.barElement.addEventListener("focusout", resetTimer);
-      resetTimer();
     }
     _setupDragging() {
       if (!this.barContainer || !this.barElement) return;
@@ -3853,8 +4217,8 @@
         }
         const winWidth = this.doc.defaultView?.innerWidth || 1200;
         const winHeight = this.doc.defaultView?.innerHeight || 800;
-        const barWidth = this.barContainer.offsetWidth || 220;
-        const barHeight = this.barContainer.offsetHeight || 36;
+        const barWidth = this.barContainer.offsetWidth || 240;
+        const barHeight = this.barContainer.offsetHeight || 38;
         const newLeft = Math.min(Math.max(this.barStartLeft + dx, 8), winWidth - barWidth - 8);
         const newTop = Math.min(Math.max(this.barStartTop + dy, 8), winHeight - barHeight - 8);
         this.barContainer.style.left = `${newLeft}px`;
@@ -3880,8 +4244,6 @@
       } else {
         this.collapsedElement.style.display = "none";
         this.barElement.style.display = "flex";
-        this.barElement.classList.remove("cc-idle-fade");
-        this._setupIdleAutoFade();
       }
     }
     dismiss() {
@@ -3918,16 +4280,15 @@
       }
       if (this.barElement) {
         this.barElement.style.display = "flex";
-        this.barElement.classList.remove("cc-idle-fade");
       }
       if (this.collapsedElement) {
         this.collapsedElement.style.display = "none";
       }
-      this._setupIdleAutoFade();
     }
-    update({ isConverted: isConverted2, targetCurrency, count, rateDate: rateDate2, provider, theme } = {}) {
+    update({ isConverted: isConverted2, targetCurrency, sourceCurrency, count, rateDate: rateDate2, provider, theme } = {}) {
       if (isConverted2 !== void 0) this.isConverted = Boolean(isConverted2);
       if (targetCurrency !== void 0) this.targetCurrency = targetCurrency;
+      if (sourceCurrency !== void 0) this.sourceCurrency = sourceCurrency;
       if (count !== void 0) this.convertedCount = count;
       if (rateDate2 !== void 0) this.rateDate = rateDate2;
       if (provider !== void 0) this.provider = provider;
@@ -3945,7 +4306,7 @@
       const select = this.barElement.querySelector(".cc-select");
       const miniLabel = this.collapsedElement?.querySelector(".cc-mini-label");
       if (dot) {
-        dot.classList.toggle("cc-status-inactive", !this.isConverted);
+        dot.classList.toggle("cc-status-inactive", !this.isConverted && this.convertedCount === 0);
       }
       if (btnOriginal) {
         btnOriginal.classList.toggle("active", !this.isConverted);
@@ -3956,21 +4317,21 @@
         btnConverted.setAttribute("aria-selected", this.isConverted ? "true" : "false");
       }
       if (codeSpan) {
-        codeSpan.textContent = this.targetCurrency;
+        codeSpan.textContent = this.sourceCurrency && this.sourceCurrency !== this.targetCurrency ? `${this.sourceCurrency} \u2192 ${this.targetCurrency}` : this.targetCurrency;
       }
       if (countBadge) {
-        countBadge.textContent = String(this.convertedCount || 0);
-        countBadge.style.display = this.convertedCount > 0 ? "inline-flex" : "none";
+        countBadge.textContent = String(this.convertedCount !== void 0 ? this.convertedCount : 0);
+        countBadge.style.display = "inline-flex";
       }
-      if (rateSpan && this.rateDate) {
-        rateSpan.textContent = this.rateDate;
+      if (rateSpan && (this.rateDate || this.provider)) {
+        rateSpan.textContent = this.rateDate || this.provider;
         rateSpan.style.display = "inline";
       }
       if (select && select.value !== this.targetCurrency) {
         select.value = this.targetCurrency;
       }
       if (miniLabel) {
-        miniLabel.textContent = `${this.convertedCount || 0} ${this.targetCurrency}`;
+        miniLabel.textContent = `${this.convertedCount !== void 0 ? this.convertedCount : 0} ${this.targetCurrency}`;
       }
       if (!this.isDismissedForSession && this.barElement.style.display === "none" && !this.isCollapsed) {
         this.barElement.style.display = "flex";
@@ -4035,10 +4396,6 @@
       this.tooltipElement.setAttribute("aria-hidden", "true");
     }
     unmount() {
-      if (this._idleTimer) {
-        clearTimeout(this._idleTimer);
-        this._idleTimer = null;
-      }
       if (this.rootContainer && this.rootContainer.parentNode) {
         this.rootContainer.parentNode.removeChild(this.rootContainer);
         this.rootContainer = null;
@@ -4108,342 +4465,7 @@
   }
 
   // src/content/ui.css
-  var ui_default = `/* src/content/ui.css - Apple Dynamic Island Hardware OLED Styles */
-
-:host {
-  all: initial;
-  display: block;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 0;
-  z-index: 2147483647;
-  pointer-events: none;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
-}
-
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-.cc-island-container {
-  position: fixed;
-  top: 14px;
-  left: 50%;
-  transform: translate3d(-50%, 0, 0);
-  pointer-events: auto;
-  user-select: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-/* 1. Dynamic Island Capsule */
-.cc-dynamic-island {
-  display: flex;
-  align-items: center;
-  height: 30px;
-  padding: 0 12px;
-  background-color: #09090b;
-  color: #fafafa;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.45), 0 2px 6px -1px rgba(0, 0, 0, 0.25);
-  cursor: default;
-  overflow: hidden;
-  will-change: transform, opacity;
-  transform-origin: center top;
-  transition:
-    transform 360ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 360ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 360ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 200ms ease;
-}
-
-.cc-dynamic-island:hover,
-.cc-dynamic-island:focus-within,
-.cc-dynamic-island.cc-expanded {
-  transform: scale(1.015);
-  box-shadow: 0 14px 34px -4px rgba(0, 0, 0, 0.55), 0 4px 10px -1px rgba(0, 0, 0, 0.35);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-/* Hidden State */
-.cc-dynamic-island.cc-hidden {
-  opacity: 0;
-  transform: translateY(-14px) scale(0.92);
-  pointer-events: none;
-}
-
-/* Idle smooth collapse */
-.cc-dynamic-island.cc-idle-fade {
-  opacity: 0.28;
-  transform: scale(0.96);
-  transition: opacity 400ms ease, transform 400ms ease;
-}
-
-.cc-dynamic-island.cc-idle-fade:hover,
-.cc-dynamic-island.cc-idle-fade:focus-within {
-  opacity: 1;
-  transform: scale(1.015);
-}
-
-/* Compact Inner Section */
-.cc-island-compact {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-/* 6px Status Dot */
-.cc-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: #10b981;
-  flex-shrink: 0;
-  transition: background-color 200ms ease;
-}
-
-.cc-status-dot.cc-status-inactive {
-  background-color: #71717a;
-}
-
-/* Summary Text */
-.cc-currency-code {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  color: #fafafa;
-  letter-spacing: -0.02em;
-}
-
-.cc-count-sep {
-  font-size: 11px;
-  color: #71717a;
-  user-select: none;
-}
-
-.cc-count-badge {
-  font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 11.5px;
-  font-weight: 500;
-  color: #a1a1aa;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-
-/* Expandable Grid Track (0fr -> 1fr zero-jank morph) */
-.cc-island-expandable {
-  display: grid;
-  grid-template-columns: 0fr;
-  transition: grid-template-columns 360ms cubic-bezier(0.22, 1, 0.36, 1);
-  overflow: hidden;
-}
-
-.cc-dynamic-island:hover .cc-island-expandable,
-.cc-dynamic-island:focus-within .cc-island-expandable,
-.cc-dynamic-island.cc-expanded .cc-island-expandable {
-  grid-template-columns: 1fr;
-}
-
-.cc-island-expandable-content {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding-left: 10px;
-  opacity: 0;
-  transform: translateX(-6px);
-  transition:
-    opacity 280ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
-  white-space: nowrap;
-}
-
-.cc-dynamic-island:hover .cc-island-expandable-content,
-.cc-dynamic-island:focus-within .cc-island-expandable-content,
-.cc-dynamic-island.cc-expanded .cc-island-expandable-content {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-/* Live Exchange Rate */
-.cc-live-rate {
-  font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 11.5px;
-  font-weight: 450;
-  color: #a1a1aa;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-
-/* Tactile Pill Toggle [ Original | Converted ] */
-.cc-segmented {
-  display: inline-flex;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 9999px;
-  padding: 2px;
-  gap: 2px;
-}
-
-.cc-segment-btn {
-  background: transparent;
-  border: none;
-  border-radius: 9999px;
-  padding: 2px 8px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-  font-size: 11px;
-  font-weight: 500;
-  color: #71717a;
-  cursor: pointer;
-  transition: color 150ms ease, background-color 150ms ease;
-  outline: none;
-}
-
-.cc-segment-btn:hover {
-  color: #fafafa;
-}
-
-.cc-segment-btn.active {
-  background: #27272a;
-  color: #fafafa;
-}
-
-.cc-segment-btn:focus-visible {
-  outline: 1.5px solid #fafafa;
-  outline-offset: 1px;
-}
-
-/* Quiet Dismiss Button */
-.cc-dismiss-btn {
-  background: transparent;
-  border: none;
-  color: #71717a;
-  padding: 3px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: color 140ms ease, transform 140ms ease;
-  outline: none;
-}
-
-.cc-dismiss-btn:hover {
-  color: #ffffff;
-  transform: scale(1.1);
-}
-
-.cc-dismiss-btn:active {
-  transform: scale(0.92);
-}
-
-.cc-dismiss-btn:focus-visible {
-  outline: 1.5px solid #fafafa;
-}
-
-/* Collapsed Mini Pill */
-.cc-collapsed-pill {
-  display: none;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 10px;
-  background-color: #09090b;
-  color: #fafafa;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 500;
-  transition: transform 180ms ease, opacity 180ms ease;
-}
-
-.cc-collapsed-pill:hover {
-  transform: scale(1.05);
-  border-color: rgba(255, 255, 255, 0.25);
-}
-
-/* 2. Precision OLED Hover Tooltip */
-.cc-tooltip {
-  position: fixed;
-  display: none;
-  flex-direction: column;
-  background: #09090b;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  padding: 6px 10px;
-  color: #fafafa;
-  font-size: 11.5px;
-  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.5);
-  pointer-events: none;
-  z-index: 2147483647;
-  max-width: 280px;
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 120ms ease, transform 120ms ease;
-}
-
-.cc-tooltip.visible {
-  display: flex;
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.cc-tooltip-title {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-  font-size: 11.5px;
-  font-weight: 500;
-  color: #fafafa;
-  margin-bottom: 2px;
-  letter-spacing: -0.01em;
-}
-
-.cc-tooltip-sub {
-  font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 10.5px;
-  color: #a1a1aa;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-
-.cc-tooltip-caret {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  background: #09090b;
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  transform: rotate(45deg);
-  bottom: -4px;
-  left: 50%;
-  margin-left: -3px;
-}
-
-/* 3. Reduced Motion Fallback */
-@media (prefers-reduced-motion: reduce) {
-  .cc-dynamic-island,
-  .cc-island-expandable,
-  .cc-island-expandable-content,
-  .cc-collapsed-pill,
-  .cc-tooltip {
-    transition: none !important;
-    animation: none !important;
-    transform: none !important;
-  }
-}
-`;
+  var ui_default = "/* src/content/ui.css - 60fps GPU-Accelerated Apple Dynamic Island OLED Capsule */\n\n:host {\n  all: initial;\n  display: block;\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 0;\n  z-index: 2147483647;\n  pointer-events: none;\n  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;\n  -webkit-font-smoothing: antialiased;\n  -moz-osx-font-smoothing: grayscale;\n  text-rendering: optimizeLegibility;\n}\n\n*, *::before, *::after {\n  box-sizing: border-box;\n  margin: 0;\n  padding: 0;\n}\n\n.cc-island-container {\n  position: fixed;\n  top: 16px;\n  left: 50%;\n  transform: translate3d(-50%, 0, 0);\n  pointer-events: auto;\n  user-select: none;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  z-index: 2147483647;\n}\n\n/* 1. Apple Dynamic Island Capsule */\n.cc-dynamic-island {\n  display: flex;\n  align-items: center;\n  height: 34px;\n  padding: 0 14px;\n  background-color: #09090b;\n  color: #fafafa;\n  border-radius: 9999px;\n  border: 1px solid rgba(255, 255, 255, 0.14);\n  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 2px 6px -1px rgba(0, 0, 0, 0.25);\n  cursor: default;\n  overflow: hidden;\n  will-change: transform, opacity;\n  transform-origin: center top;\n  transition:\n    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),\n    box-shadow 280ms cubic-bezier(0.22, 1, 0.36, 1),\n    border-color 150ms ease,\n    opacity 200ms ease;\n}\n\n.cc-dynamic-island:hover,\n.cc-dynamic-island:focus-within,\n.cc-dynamic-island.cc-expanded {\n  transform: scale(1.02);\n  box-shadow: 0 14px 32px -4px rgba(0, 0, 0, 0.55), 0 4px 10px -1px rgba(0, 0, 0, 0.3);\n  border-color: rgba(255, 255, 255, 0.24);\n}\n\n/* Compact Inner Section */\n.cc-island-compact {\n  display: flex;\n  align-items: center;\n  gap: 7px;\n  flex-shrink: 0;\n}\n\n/* Status Dot: Glowing Emerald (#10b981) */\n.cc-status-dot {\n  width: 7px;\n  height: 7px;\n  border-radius: 50%;\n  background-color: #10b981;\n  box-shadow: 0 0 8px rgba(16, 185, 129, 0.65);\n  flex-shrink: 0;\n  transition: background-color 200ms ease, box-shadow 200ms ease;\n}\n\n.cc-status-dot.cc-status-inactive {\n  background-color: #71717a;\n  box-shadow: none;\n}\n\n/* Currency Code & Conversion Pair */\n.cc-currency-code {\n  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;\n  font-size: 12.5px;\n  font-weight: 550;\n  color: #fafafa;\n  letter-spacing: -0.01em;\n}\n\n.cc-count-sep {\n  font-size: 11px;\n  color: #71717a;\n  user-select: none;\n}\n\n/* Count Badge */\n.cc-count-badge {\n  font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;\n  font-size: 11.5px;\n  font-weight: 500;\n  color: #e4e4e7;\n  background-color: rgba(255, 255, 255, 0.1);\n  padding: 1px 6px;\n  border-radius: 9999px;\n  font-variant-numeric: tabular-nums;\n  letter-spacing: -0.02em;\n}\n\n/* Expandable Grid Track (0fr -> 1fr zero-jank hardware morph) */\n.cc-island-expandable {\n  display: grid;\n  grid-template-columns: 0fr;\n  transition: grid-template-columns 280ms cubic-bezier(0.22, 1, 0.36, 1);\n  overflow: hidden;\n}\n\n.cc-dynamic-island:hover .cc-island-expandable,\n.cc-dynamic-island:focus-within .cc-island-expandable,\n.cc-dynamic-island.cc-expanded .cc-island-expandable {\n  grid-template-columns: 1fr;\n}\n\n.cc-island-expandable-content {\n  min-width: 0;\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  padding-left: 10px;\n  opacity: 0;\n  transform: translateX(-4px);\n  transition:\n    opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),\n    transform 240ms cubic-bezier(0.22, 1, 0.36, 1);\n  white-space: nowrap;\n}\n\n.cc-dynamic-island:hover .cc-island-expandable-content,\n.cc-dynamic-island:focus-within .cc-island-expandable-content,\n.cc-dynamic-island.cc-expanded .cc-island-expandable-content {\n  opacity: 1;\n  transform: translateX(0);\n}\n\n/* Live Exchange Rate */\n.cc-live-rate {\n  font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;\n  font-size: 11.5px;\n  font-weight: 450;\n  color: #a1a1aa;\n  font-variant-numeric: tabular-nums;\n  letter-spacing: -0.02em;\n}\n\n/* Tactile Segmented Control: [ Original | Converted ] */\n.cc-segmented {\n  display: inline-flex;\n  align-items: center;\n  background: rgba(255, 255, 255, 0.08);\n  border-radius: 9999px;\n  padding: 2px;\n  gap: 2px;\n}\n\n.cc-segment-btn {\n  background: transparent;\n  border: none;\n  border-radius: 9999px;\n  padding: 2px 8px;\n  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;\n  font-size: 11px;\n  font-weight: 500;\n  color: #a1a1aa;\n  cursor: pointer;\n  transition: color 140ms ease, background-color 140ms ease;\n  outline: none;\n}\n\n.cc-segment-btn:hover {\n  color: #fafafa;\n}\n\n.cc-segment-btn.active {\n  background: #27272a;\n  color: #fafafa;\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);\n}\n\n.cc-segment-btn:focus-visible {\n  outline: 1.5px solid #fafafa;\n  outline-offset: 1px;\n}\n\n/* Quick Currency Select Dropdown inside Island */\n.cc-select-wrapper {\n  position: relative;\n  display: inline-flex;\n  align-items: center;\n}\n\n.cc-select {\n  appearance: none;\n  -webkit-appearance: none;\n  background: rgba(255, 255, 255, 0.08);\n  border: 1px solid rgba(255, 255, 255, 0.12);\n  color: #fafafa;\n  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;\n  font-size: 11px;\n  font-weight: 500;\n  height: 22px;\n  padding: 0 16px 0 6px;\n  border-radius: 4px;\n  cursor: pointer;\n  outline: none;\n  transition: border-color 140ms ease;\n}\n\n.cc-select:hover {\n  border-color: rgba(255, 255, 255, 0.25);\n}\n\n.cc-select:focus-visible {\n  border-color: #fafafa;\n}\n\n.cc-select-arrow {\n  position: absolute;\n  right: 5px;\n  pointer-events: none;\n  color: #a1a1aa;\n  display: flex;\n  align-items: center;\n}\n\n/* Clean Dismiss / Close Button */\n.cc-dismiss-btn {\n  background: transparent;\n  border: none;\n  color: #71717a;\n  padding: 4px;\n  border-radius: 50%;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  cursor: pointer;\n  transition: color 140ms ease, background-color 140ms ease, transform 140ms ease;\n  outline: none;\n}\n\n.cc-dismiss-btn:hover {\n  color: #fafafa;\n  background-color: rgba(255, 255, 255, 0.1);\n  transform: scale(1.1);\n}\n\n.cc-dismiss-btn:active {\n  transform: scale(0.92);\n}\n\n.cc-dismiss-btn:focus-visible {\n  outline: 1.5px solid #fafafa;\n}\n\n/* Collapsed Mini Pill */\n.cc-collapsed-pill {\n  display: none;\n  align-items: center;\n  gap: 6px;\n  height: 28px;\n  padding: 0 10px;\n  background-color: #09090b;\n  color: #fafafa;\n  border-radius: 9999px;\n  border: 1px solid rgba(255, 255, 255, 0.14);\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);\n  cursor: pointer;\n  font-size: 11px;\n  font-weight: 500;\n  transition: transform 180ms ease, opacity 180ms ease;\n}\n\n.cc-collapsed-pill:hover {\n  transform: scale(1.05);\n  border-color: rgba(255, 255, 255, 0.28);\n}\n\n/* 2. Precision OLED Hover Tooltip */\n.cc-tooltip {\n  position: fixed;\n  display: none;\n  flex-direction: column;\n  background: #09090b;\n  border: 1px solid rgba(255, 255, 255, 0.14);\n  border-radius: 6px;\n  padding: 6px 10px;\n  color: #fafafa;\n  font-size: 11.5px;\n  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.5);\n  pointer-events: none;\n  z-index: 2147483647;\n  max-width: 280px;\n  opacity: 0;\n  transform: translateY(4px);\n  transition: opacity 120ms ease, transform 120ms ease;\n}\n\n.cc-tooltip.visible {\n  display: flex;\n  opacity: 1;\n  transform: translateY(0);\n}\n\n.cc-tooltip-title {\n  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;\n  font-size: 11.5px;\n  font-weight: 500;\n  color: #fafafa;\n  margin-bottom: 2px;\n  letter-spacing: -0.01em;\n}\n\n.cc-tooltip-sub {\n  font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;\n  font-size: 10.5px;\n  color: #a1a1aa;\n  font-variant-numeric: tabular-nums;\n  letter-spacing: -0.02em;\n}\n\n.cc-tooltip-caret {\n  position: absolute;\n  width: 6px;\n  height: 6px;\n  background: #09090b;\n  border-right: 1px solid rgba(255, 255, 255, 0.14);\n  border-bottom: 1px solid rgba(255, 255, 255, 0.14);\n  transform: rotate(45deg);\n  bottom: -4px;\n  left: 50%;\n  margin-left: -3px;\n}\n\n/* 3. Reduced Motion Fallback */\n@media (prefers-reduced-motion: reduce) {\n  .cc-dynamic-island,\n  .cc-island-expandable,\n  .cc-island-expandable-content,\n  .cc-collapsed-pill,\n  .cc-tooltip {\n    transition: none !important;\n    animation: none !important;\n    transform: none !important;\n  }\n}\n";
 
   // src/content/content.js
   var currentScanner = null;
@@ -4559,12 +4581,16 @@
     if (isConverted) {
       currentScanner.startObserving();
     }
-    if (showInPageBar && isConverted && convertedCount > 0) {
+    const isManual = Boolean(options.manual);
+    const shouldShowPill = showInPageBar && (convertedCount > 0 || isManual);
+    const primarySourceCurrency = currentScanner?.primarySourceCurrency || currentScanner?.detectedCurrencies && Array.from(currentScanner.detectedCurrencies)[0] || null;
+    if (shouldShowPill) {
       if (!currentUI) {
         currentUI = new InPageUI({
           doc: document,
           targetCurrency,
-          isConverted: true,
+          sourceCurrency: primarySourceCurrency,
+          isConverted: convertedCount > 0,
           convertedCount,
           rateDate,
           provider: rateProvider,
@@ -4573,31 +4599,43 @@
             performRevert();
           },
           onConvert: (cur) => {
-            performConversion({ targetCurrency: cur });
+            performConversion({ targetCurrency: cur, manual: true });
           },
           onChangeCurrency: (newCur) => {
-            performConversion({ targetCurrency: newCur });
+            performConversion({ targetCurrency: newCur, manual: true });
           }
         });
         currentUI.mount(ui_default);
       } else {
         currentUI.update({
-          isConverted: true,
+          isConverted: convertedCount > 0,
           targetCurrency,
+          sourceCurrency: primarySourceCurrency,
           count: convertedCount,
           rateDate,
           provider: rateProvider,
           theme: currentSettings?.theme || "system"
         });
+      }
+      if (isManual) {
+        currentUI.show();
+      } else if (convertedCount > 0 && !currentUI.isDismissedForSession) {
         currentUI.show();
       }
     } else {
-      if (currentUI) {
+      if (currentUI && convertedCount === 0 && !isManual) {
         currentUI.hide();
       }
     }
     notifyBackgroundOfStatus();
-    return { success: true, count: convertedCount, targetCurrency };
+    return {
+      success: true,
+      count: convertedCount,
+      convertedCount,
+      targetCurrency,
+      alreadyTarget: convertedCount === 0,
+      detectedCurrencies: currentScanner ? Array.from(currentScanner.detectedCurrencies || []) : []
+    };
   }
   function performRevert() {
     if (currentScanner) {

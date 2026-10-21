@@ -2916,8 +2916,10 @@
   }
   function updateLivePreview() {
     if (!previewRenderedPrice || !currentSettings) return;
-    const sampleAmount = 1299.99;
-    const sampleOriginalCurrency = "USD";
+    const inputAmount = document.getElementById("preview-amount");
+    const selectSourceCur = document.getElementById("preview-source-currency");
+    const sampleAmount = inputAmount ? parseFloat(inputAmount.value) || 0 : 1299.99;
+    const sampleOriginalCurrency = selectSourceCur ? selectSourceCur.value || "USD" : "USD";
     const targetCurrency = currentSettings.targetCurrency || "USD";
     const displayMode = currentSettings.displayMode || "replace";
     const roundWhole = Boolean(currentSettings.roundWhole);
@@ -2927,13 +2929,14 @@
     try {
       rate = calculateRate(sampleOriginalCurrency, targetCurrency, ratesTable);
       convertedAmount = convertAmount(sampleAmount, sampleOriginalCurrency, targetCurrency, ratesTable);
-    } catch (err) {
+    } catch {
       rate = 1;
       convertedAmount = sampleAmount;
     }
+    const origFormatted = formatCurrency(sampleAmount, sampleOriginalCurrency, { roundWhole: false });
     const formattedConverted = formatCurrency(convertedAmount, targetCurrency, { roundWhole });
     const display = formatPriceDisplay({
-      originalText: `$1,299.99`,
+      originalText: origFormatted,
       convertedText: formattedConverted,
       displayMode
     });
@@ -2949,6 +2952,10 @@
     if (previewTooltipRateText) {
       const formattedUnit = rate.toFixed(4);
       previewTooltipRateText.textContent = `1 ${sampleOriginalCurrency} = ${formattedUnit} ${targetCurrency} \xB7 Live Rates`;
+    }
+    const tooltipTitle = previewSimulatedTooltip ? previewSimulatedTooltip.querySelector(".preview-tooltip-title") : null;
+    if (tooltipTitle) {
+      tooltipTitle.textContent = `Original: ${origFormatted}`;
     }
   }
   async function savePartialSettings(partial) {
@@ -3023,6 +3030,18 @@
         savePartialSettings({ theme: chosenTheme });
       });
     });
+    const inputPreviewAmount = document.getElementById("preview-amount");
+    if (inputPreviewAmount) {
+      inputPreviewAmount.addEventListener("input", () => {
+        updateLivePreview();
+      });
+    }
+    const selectPreviewSource = document.getElementById("preview-source-currency");
+    if (selectPreviewSource) {
+      selectPreviewSource.addEventListener("change", () => {
+        updateLivePreview();
+      });
+    }
     selectDefaultTarget.addEventListener("change", (e) => {
       if (currentSettings) currentSettings.targetCurrency = e.target.value;
       updateLivePreview();
