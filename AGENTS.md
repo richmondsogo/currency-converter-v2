@@ -55,6 +55,10 @@ The following installed skills are **STRICTLY PROHIBITED**:
   - SVG creation via `document.createElementNS('http://www.w3.org/2000/svg', ...)`
 - *Reason*: Eliminates DOM-based cross-site scripting (XSS) risks from untrusted web text and ensures 100% compliance with Mozilla Add-on Review Policies and Google Web Store security guidelines.
 
+### 4. Never Amend or Force-Push Once a PR is Open
+- **Rule**: Never run `git commit --amend` or `git push --force` (`-f`) once a pull request is open.
+- **Implementation**: Append new commits sequentially to the branch. This preserves branch provenance, reviewer comments, and immutable commit hashes.
+
 ---
 
 ## Standard Development Commands
