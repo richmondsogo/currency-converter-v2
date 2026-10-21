@@ -5,6 +5,8 @@
 - **Base Commit**: `d0f4e57` (Merge PR #9 on main)
 - **Step 05 PR**: [#9](https://github.com/richmondsogo/currency-convertr/pull/9)
 - **Step 05 Merge SHA on Main**: `d0f4e57`
+- **Step 05b PR**: [#10](https://github.com/richmondsogo/currency-convertr/pull/10)
+- **First Content Commit SHA**: `53c8c69`
 
 ---
 
