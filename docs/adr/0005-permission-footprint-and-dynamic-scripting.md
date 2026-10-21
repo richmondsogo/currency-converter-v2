@@ -19,5 +19,5 @@ In v2.0.0, the declared permissions were:
 
 ## Consequences & Evolution
 - Attempting dynamic permission grants from an in-page UI encountered browser security constraints because `chrome.permissions` is unavailable in content scripts.
-- The manifest ships `host_permissions: ["<all_urls>"]`.
-- Superseded in part by ADR 0012, which introduces a lightweight static detector script while keeping full engine injection gated on consent.
+- Superseded in part by ADR 0012 and ADR 0013, which introduce a lightweight static detector script while keeping DOM price mutation gated on user consent or 'always' mode (content.js is injected on demand to mount the canonical Dynamic Island offer pill).
+
