@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>T1 Late Prices Fixture</title>
+</head>
+<body>
+  <h1>T1 Product Showcase</h1>
+  <div id="initial-price">$25.00 USD</div>
+  <div id="price-container">
+    <p class="loading">Waiting for late prices...</p>
+  </div>
+
+  <script>
+    setTimeout(() => {
+      const container = document.getElementById('price-container');
+      const lateEl = document.createElement('div');
+      lateEl.id = 'late-price';
+      lateEl.textContent = '$120.00 USD';
+      container.appendChild(lateEl);
+    }, 1500);
+  </script>
+</body>
+</html>
