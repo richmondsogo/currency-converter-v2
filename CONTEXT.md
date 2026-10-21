@@ -73,6 +73,7 @@ All conversion requests feed into a single, unified conversion pipeline in the b
 ## Current Status
 - **Current Version**: v2.0.0 in production; transitioning to v2.1.0 specification.
 - **Engine**: Cross-browser Manifest V3 (Chrome, Edge, Brave, Opera, Firefox).
+- **Build Output**: Run `npm run build`, then load `dist/chrome`; `dist/` is not tracked.
 - **DOM Engine**: Two-phase DOM walker with regex boundary parsing, split-price inner-first assembly, and open Shadow DOM traversal with byte-for-byte revert fidelity.
 - **UI System**: Custom OLED Dynamic Island pill with zero runtime frameworks, zero external CSS dependencies, isolated inside an open Shadow DOM root.
 

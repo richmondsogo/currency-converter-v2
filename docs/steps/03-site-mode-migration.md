@@ -5,8 +5,8 @@
 - **Status**: COMPLETE
 - **PR URL**: https://github.com/richmondsogo/currency-convertr/pull/7
 - **First Commit SHA**: `fb9ed84`
-- **Last Commit SHA**: `61ae8ef`
-- **Merge Commit SHA**: `recorded in the step 04 branch`
+- **Last Commit SHA**: `f107f61`
+- **Merge Commit SHA on Main**: `f4c9baa`
 
 ---
 
@@ -145,5 +145,7 @@ All 56 unit tests pass cleanly, including the complete migration matrix, idempot
   - `d22938b`: `feat(readers): adapt background, content, and popup readers and writers to getSiteMode`
   - `9209184`: `feat(options): update options page site rules to tri-state behavior select`
   - `58219a8`: `test(settings): add comprehensive test suite for schema v3, migration, and lookup`
-- **Last Commit SHA**: `61ae8ef` (`docs: record step 03 site-mode migration behavior and verification`)
-- **Merge Commit SHA on Main**: `recorded in the step 04 branch`
+  - `e9010fa`: `docs: record step 03 site-mode migration behavior and verification`
+- **Last Commit SHA**: `f107f61` (`docs: finalize recorded commit SHA in step 03 documentation`)
+- **Merge Commit SHA on Main**: `f4c9baa`
+- **Branch History Note**: The step 03 branch history was rewritten by a `git push --force` before merge, replacing commit `61ae8ef` with `f107f61`.

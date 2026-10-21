@@ -12,6 +12,20 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 export const TMP_BUILDS_DIR = path.join(os.tmpdir(), 'cc_builds');
 
 /**
+ * Compiles a fresh build of the extension into an OS temp directory.
+ * @param {string} [customOutDir]
+ * @returns {string} Path to the freshly built unpacked extension directory
+ */
+export function buildFreshExtension(customOutDir) {
+  const freshDir = customOutDir || fs.mkdtempSync(path.join(os.tmpdir(), 'cc-fresh-'));
+  fs.mkdirSync(freshDir, { recursive: true });
+  execSync('node build.js', { cwd: REPO_ROOT, stdio: 'pipe' });
+  const distChrome = path.join(REPO_ROOT, 'dist', 'chrome');
+  fs.cpSync(distChrome, freshDir, { recursive: true });
+  return freshDir;
+}
+
+/**
  * Ensures that both stale and fresh builds exist in the temp directory.
  */
 export function ensureBuilds() {
@@ -30,13 +44,7 @@ export function ensureBuilds() {
     fs.rmSync(archiveZip, { force: true });
   }
 
-  if (!fs.existsSync(freshDir)) {
-    fs.mkdirSync(freshDir, { recursive: true });
-    execSync('npm run build', { cwd: REPO_ROOT });
-    const distChrome = path.join(REPO_ROOT, 'dist', 'chrome');
-    fs.cpSync(distChrome, freshDir, { recursive: true });
-    execSync('git restore dist/', { cwd: REPO_ROOT });
-  }
+  buildFreshExtension(freshDir);
 
   return { staleDir, freshDir };
 }
@@ -47,12 +55,22 @@ export function ensureBuilds() {
  * @param {'fresh' | 'stale'} [options.build='fresh']
  * @param {boolean} [options.headed=true]
  * @param {string} [options.userDataDir]
- * @returns {Promise<{ context: import('playwright').BrowserContext, extensionId: string, sw: import('playwright').Worker, extensionPath: string, userDataDir: string }>}
+ * @returns {Promise<{ context: import('playwright').BrowserContext, extensionId: string, sw: import('playwright').Worker, extensionPath: string, userDataDir: string, close: () => Promise<void> }>}
  */
 export async function launchExtensionBrowser(options = {}) {
   const build = options.build || 'fresh';
-  const { staleDir, freshDir } = ensureBuilds();
-  const extensionPath = build === 'stale' ? staleDir : freshDir;
+  let extensionPath;
+  let tempBuildDir = null;
+
+  if (build === 'stale') {
+    const { staleDir } = ensureBuilds();
+    extensionPath = staleDir;
+  } else {
+    // Harness must build the extension into an OS temp dir at the start of each run (no dependence on leftover temp state)
+    tempBuildDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cc-ext-fresh-'));
+    buildFreshExtension(tempBuildDir);
+    extensionPath = tempBuildDir;
+  }
 
   const userDataDir = options.userDataDir || fs.mkdtempSync(path.join(os.tmpdir(), `pw-cc-${build}-`));
 
@@ -88,6 +106,11 @@ export async function launchExtensionBrowser(options = {}) {
       try {
         fs.rmSync(userDataDir, { recursive: true, force: true });
       } catch (_) {}
+      if (tempBuildDir) {
+        try {
+          fs.rmSync(tempBuildDir, { recursive: true, force: true });
+        } catch (_) {}
+      }
     }
   };
 }

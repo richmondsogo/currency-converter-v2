@@ -73,7 +73,13 @@ npm test
 ```bash
 npm run build
 ```
-*Runs `node build.js`, invoking `esbuild` to compile `src/` into self-contained MV3 bundles in `dist/chrome/`, `dist/firefox/`, and creates release zips in `dist/packages/`.*
+*Runs `node build.js`, invoking `esbuild` to compile `src/` into self-contained MV3 bundles in `dist/chrome/`, `dist/firefox/`, and creates release zips in `dist/packages/`. Always run `npm run build`, then load `dist/chrome`; `dist/` is not tracked.*
+
+### Run Real-Browser E2E Tests
+```bash
+npm run test:e2e
+```
+*Executes Playwright tests against unpacked extension in real Chromium (Chrome for Testing).*
 
 ### Lint for Firefox MV3 Parity
 ```bash
