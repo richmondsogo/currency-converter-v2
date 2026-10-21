@@ -3,6 +3,7 @@ import { PageScanner } from './scanner.js';
 import { InPageUI } from './ui.js';
 import { MSG } from '../shared/messaging.js';
 import { sendMessage, getBrowser } from '../shared/browser.js';
+import { shouldAutoConvertPage } from '../shared/settings.js';
 
 // Inlined ui.css for complete self-contained Shadow DOM isolation
 import uiCssText from './ui.css';
@@ -280,15 +281,7 @@ async function initializeContentScript() {
     const settings = await sendMessage({ type: MSG.GET_SETTINGS });
     if (settings) {
       currentSettings = settings;
-      const hostname = window.location.hostname;
-      const siteRule = settings.perSite && settings.perSite[hostname];
-
-      // Auto-convert conditions:
-      // 1. Site explicitly marked autoConvert: true
-      // 2. autoConvertAll is true and site is NOT marked neverConvert: true
-      const shouldAutoConvert =
-        (siteRule && siteRule.autoConvert) ||
-        (settings.autoConvertAll && (!siteRule || !siteRule.neverConvert));
+      const shouldAutoConvert = shouldAutoConvertPage(settings, window.location.hostname);
 
       if (shouldAutoConvert) {
         performConversion();

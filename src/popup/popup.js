@@ -1,6 +1,7 @@
 // src/popup/popup.js
 import { getAllCurrencies, getCurrencyMeta } from '../shared/currencies.js';
 import { MSG } from '../shared/messaging.js';
+import { getSiteMode, setSiteMode, normalizeHost } from '../shared/settings.js';
 import {
   sendMessage,
   sendTabMessage,
@@ -191,10 +192,12 @@ function updateSelectedTargetUI(code) {
 
 function initSiteRulesUI() {
   if (!currentSettings || !currentHostname) return;
-  const siteRule = (currentSettings.perSite && currentSettings.perSite[currentHostname]) || {};
+  const siteModeInfo = getSiteMode(currentSettings, currentHostname);
+  const norm = normalizeHost(currentHostname);
+  const siteRule = (currentSettings.perSite && currentSettings.perSite[norm]) || {};
 
-  toggleAlwaysSite.checked = Boolean(siteRule.autoConvert);
-  toggleNeverSite.checked = Boolean(siteRule.neverConvert);
+  toggleAlwaysSite.checked = (siteModeInfo.mode === 'always');
+  toggleNeverSite.checked = (siteModeInfo.mode === 'never');
   siteCurrencyOverride.value = siteRule.assumedCurrency || '';
 }
 
@@ -445,12 +448,11 @@ function setupActionListeners() {
         liveStatusEl.textContent = 'Permission denied for this site';
         return;
       }
+      await saveSiteMode('always');
+    } else {
+      const offMode = currentSettings?.autoConvertAll ? 'ask' : null;
+      await saveSiteMode(offMode);
     }
-
-    await saveSiteRule({
-      autoConvert: checked,
-      neverConvert: false
-    });
   });
 
   // Never convert toggle
@@ -458,41 +460,47 @@ function setupActionListeners() {
     const checked = e.target.checked;
     if (checked) {
       toggleAlwaysSite.checked = false;
+      await saveSiteMode('never');
+    } else {
+      await saveSiteMode(null);
     }
-    await saveSiteRule({
-      neverConvert: checked,
-      autoConvert: false
-    });
   });
 
   // Site currency override
   siteCurrencyOverride.addEventListener('change', async (e) => {
     const val = e.target.value;
-    await saveSiteRule({
-      assumedCurrency: val || null
-    });
+    await saveSiteCurrency(val || null);
   });
 }
 
-async function saveSiteRule(rulePatch) {
+async function saveSiteMode(mode) {
   if (!currentHostname) return;
-  const currentRules = (currentSettings?.perSite && currentSettings.perSite[currentHostname]) || {};
-  const updatedRule = {
-    ...currentRules,
-    ...rulePatch
-  };
+  setSiteMode(currentSettings, currentHostname, mode);
 
-  const perSite = {
-    ...(currentSettings?.perSite || {}),
-    [currentHostname]: updatedRule
+  await sendMessage({
+    type: MSG.UPDATE_SETTINGS,
+    payload: { perSite: currentSettings.perSite }
+  });
+
+  initSiteRulesUI();
+}
+
+async function saveSiteCurrency(currency) {
+  if (!currentHostname) return;
+  const norm = normalizeHost(currentHostname);
+  if (!currentSettings.perSite) currentSettings.perSite = {};
+  const existing = currentSettings.perSite[norm] || {};
+  currentSettings.perSite[norm] = {
+    ...existing,
+    assumedCurrency: currency
   };
 
   await sendMessage({
     type: MSG.UPDATE_SETTINGS,
-    payload: { perSite }
+    payload: { perSite: currentSettings.perSite }
   });
 
-  currentSettings.perSite = perSite;
+  initSiteRulesUI();
 }
 
 async function triggerConvert(targetCur) {
@@ -512,7 +520,8 @@ async function triggerConvert(targetCur) {
     await injectContentScript(currentTab.id);
 
     const ratesData = await sendMessage({ type: MSG.GET_RATES });
-    const siteRule = currentSettings?.perSite && currentHostname && currentSettings.perSite[currentHostname];
+    const norm = normalizeHost(currentHostname);
+    const siteRule = currentSettings?.perSite && currentSettings.perSite[norm];
 
     const convertPayload = {
       manual: true,

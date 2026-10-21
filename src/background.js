@@ -1,6 +1,6 @@
 // src/background.js
 import { RatesEngine, calculateRate, convertAmount } from './shared/rates.js';
-import { SettingsManager, DEFAULT_SETTINGS } from './shared/settings.js';
+import { SettingsManager, DEFAULT_SETTINGS, getSiteMode, shouldAutoConvertPage, normalizeHost } from './shared/settings.js';
 import { formatCurrency } from './shared/format.js';
 import { detectCurrency, extractAmount } from './shared/parser.js';
 import { MSG } from './shared/messaging.js';
@@ -304,8 +304,9 @@ async function syncAutoConvertRules() {
     const approvedSites = [];
 
     for (const [hostname, rule] of Object.entries(settings.perSite || {})) {
-      if (rule.autoConvert) {
-        approvedSites.push(hostname);
+      const mode = rule?.mode ?? (rule?.autoConvert ? 'always' : undefined);
+      if (mode === 'always') {
+        approvedSites.push(normalizeHost(hostname));
       }
     }
 
@@ -341,13 +342,8 @@ if (api && api.tabs && api.tabs.onUpdated) {
     if (changeInfo.status === 'complete' && tab && tab.url && tab.url.startsWith('http')) {
       try {
         const url = new URL(tab.url);
-        const hostname = url.hostname;
         const settings = await settingsManager.getSettings();
-        const rule = settings.perSite && settings.perSite[hostname];
-
-        const shouldAutoConvert =
-          (rule && rule.autoConvert) ||
-          (settings.autoConvertAll && (!rule || !rule.neverConvert));
+        const shouldAutoConvert = shouldAutoConvertPage(settings, url.hostname);
 
         if (shouldAutoConvert) {
           await convertPageOnTab(tabId);

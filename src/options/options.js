@@ -2,6 +2,7 @@
 import { getAllCurrencies, getCurrencyMeta } from '../shared/currencies.js';
 import { MSG } from '../shared/messaging.js';
 import { sendMessage, getBrowser } from '../shared/browser.js';
+import { getSiteMode, setSiteMode, normalizeHost } from '../shared/settings.js';
 import { formatCurrency, formatPriceDisplay } from '../shared/format.js';
 import { calculateRate, convertAmount } from '../shared/rates.js';
 
@@ -343,30 +344,47 @@ function renderRulesTable() {
     tdDomain.appendChild(hostSpan);
     tr.appendChild(tdDomain);
 
-    // Behavior
+    // Behavior Select (Default / Ask / Always / Never)
     const tdBehavior = document.createElement('td');
-    const badge = document.createElement('span');
-    const dot = document.createElement('span');
-    dot.className = 'badge-dot';
-    const badgeText = document.createElement('span');
+    tdBehavior.className = 'rule-behavior-cell';
 
-    if (rule.autoConvert) {
-      badge.className = 'badge-tag badge-always';
-      badgeText.textContent = 'Always Convert';
-      badge.appendChild(dot);
-      badge.appendChild(badgeText);
-    } else if (rule.neverConvert) {
-      badge.className = 'badge-tag badge-never';
-      badgeText.textContent = 'Never Convert';
-      badge.appendChild(dot);
-      badge.appendChild(badgeText);
-    } else {
-      badge.className = 'badge-tag badge-default';
-      badgeText.textContent = 'Default';
-      badge.appendChild(dot);
-      badge.appendChild(badgeText);
-    }
-    tdBehavior.appendChild(badge);
+    const selectMode = document.createElement('select');
+    selectMode.className = 'form-select rule-mode-select';
+    selectMode.setAttribute('aria-label', `Behavior for ${hostname}`);
+
+    const optDefault = document.createElement('option');
+    optDefault.value = 'default';
+    optDefault.textContent = 'Default';
+
+    const optAsk = document.createElement('option');
+    optAsk.value = 'ask';
+    optAsk.textContent = 'Ask';
+
+    const optAlways = document.createElement('option');
+    optAlways.value = 'always';
+    optAlways.textContent = 'Always';
+
+    const optNever = document.createElement('option');
+    optNever.value = 'never';
+    optNever.textContent = 'Never';
+
+    selectMode.appendChild(optDefault);
+    selectMode.appendChild(optAsk);
+    selectMode.appendChild(optAlways);
+    selectMode.appendChild(optNever);
+
+    const currentMode = rule.mode || (rule.autoConvert ? 'always' : (rule.neverConvert ? 'never' : 'default'));
+    selectMode.value = currentMode;
+
+    selectMode.addEventListener('change', async (e) => {
+      const val = e.target.value;
+      const newMode = val === 'default' ? null : val;
+      setSiteMode(currentSettings, hostname, newMode);
+      await savePartialSettings({ perSite: currentSettings.perSite });
+      showSaveToast(`Updated ${hostname} to ${val}`);
+    });
+
+    tdBehavior.appendChild(selectMode);
     tr.appendChild(tdBehavior);
 
     // Assumed Currency
@@ -631,8 +649,8 @@ function setupEventListeners() {
   if (formAddRule) {
     formAddRule.addEventListener('submit', async (e) => {
       e.preventDefault();
-      let domain = (inputRuleDomain.value || '').trim().toLowerCase();
-      domain = domain.replace(/^(?:https?:\/\/)?(?:www\.)?/i, '').split('/')[0];
+      let domain = (inputRuleDomain.value || '').trim();
+      domain = normalizeHost(domain);
 
       if (!domain || !domain.includes('.')) {
         alert('Please enter a valid domain name (e.g. amazon.de or asos.com)');
@@ -640,21 +658,21 @@ function setupEventListeners() {
       }
 
       const behavior = selectRuleBehavior.value;
-      const assumedCurrency = selectRuleCurrency.value;
+      const assumedCurrency = selectRuleCurrency.value || null;
+      const mode = behavior === 'default' ? null : behavior;
 
-      const ruleObj = {
-        autoConvert: behavior === 'always',
-        neverConvert: behavior === 'never',
-        assumedCurrency: assumedCurrency || undefined
-      };
+      setSiteMode(currentSettings, domain, mode);
+      if (assumedCurrency) {
+        currentSettings.perSite[domain] = {
+          ...(currentSettings.perSite[domain] || {}),
+          assumedCurrency
+        };
+      }
 
-      const updatedPerSite = {
-        ...(currentSettings.perSite || {}),
-        [domain]: ruleObj
-      };
-
-      await savePartialSettings({ perSite: updatedPerSite });
+      await savePartialSettings({ perSite: currentSettings.perSite });
       inputRuleDomain.value = '';
+      selectRuleBehavior.value = 'default';
+      selectRuleCurrency.value = '';
       showSaveToast(`Rule for ${domain} saved`);
     });
   }
