@@ -116,3 +116,30 @@ export async function requestOriginPermission(origin) {
     });
   });
 }
+
+/**
+ * Injects content script into a tab if not already present.
+ */
+export async function injectContentScript(tabId) {
+  const b = getBrowser();
+  if (!b || !tabId) return false;
+
+  try {
+    if (b.scripting && b.scripting.executeScript) {
+      await b.scripting.executeScript({
+        target: { tabId },
+        files: ['content.js']
+      });
+      return true;
+    } else if (b.tabs && b.tabs.executeScript) {
+      return new Promise((resolve) => {
+        b.tabs.executeScript(tabId, { file: 'content.js' }, () => {
+          resolve(!b.runtime.lastError);
+        });
+      });
+    }
+  } catch (err) {
+    console.warn('[Browser] Script injection error:', err);
+  }
+  return false;
+}
