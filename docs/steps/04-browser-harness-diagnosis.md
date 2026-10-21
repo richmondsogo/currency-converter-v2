@@ -6,7 +6,7 @@
 - **Previous Step (Step 03) Merge Commit SHA on Main**: `f4c9baa`
 - **PR URL**: https://github.com/richmondsogo/currency-convertr/pull/8
 - **First Commit SHA**: `3a50930`
-- **Last Commit SHA**: `recorded before merge`
+- **Last Content Commit SHA**: `6752c0b`
 - **Merge Commit SHA**: `recorded in the step 05 branch`
 
 ---
@@ -174,5 +174,5 @@ All screenshots recorded in `docs/audits/2026-10-21-live-diagnosis/`:
 ## 8. Provenance Record
 - **PR URL**: https://github.com/richmondsogo/currency-convertr/pull/8
 - **First Commit SHA**: `3a50930`
-- **Last Commit SHA**: `recorded before merge`
+- **Last Content Commit SHA**: `6752c0b`
 - **Merge Commit SHA on Main**: `recorded in the step 05 branch`
