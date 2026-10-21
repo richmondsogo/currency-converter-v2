@@ -97,15 +97,13 @@ const commonManifest = {
     "notifications",
     "storage",
     "activeTab",
-    "scripting"
-  ],
-  optional_host_permissions: [
-    "<all_urls>"
+    "scripting",
+    "tabs"
   ],
   host_permissions: [
-    "https://api.frankfurter.dev/*",
-    "https://cdn.jsdelivr.net/*",
-    "https://latest.currency-api.pages.dev/*"
+    "<all_urls>",
+    "http://*/*",
+    "https://*/*"
   ],
   icons: {
     "16": "icons/icon16.png",
