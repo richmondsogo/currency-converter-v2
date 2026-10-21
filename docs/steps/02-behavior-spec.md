@@ -2,7 +2,11 @@
 
 - **Branch**: `step/02-behavior-spec`
 - **Target Branch**: `main`
-- **Status**: IN PROGRESS (Docs Only)
+- **Status**: COMPLETE
+- **PR URL**: https://github.com/richmondsogo/currency-convertr/pull/5
+- **First Commit SHA**: `b06fe31`
+- **Last Commit SHA**: `65b7856`
+- **Merge Commit SHA**: `c669025`
 
 ---
 
