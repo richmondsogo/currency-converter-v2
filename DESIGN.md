@@ -1,6 +1,6 @@
 ---
 name: currency-convertr
-version: 2.1.0
+version: 2.1.0-draft (target design spec; package.json runtime version is 2.0.0)
 description: Ultra-clean editorial minimalism design system for Currency Convertr browser extension.
 colors:
   bg-canvas: "#ffffff"
@@ -64,7 +64,7 @@ spacing:
 # Design Philosophy & Technical UI/UX Specifications
 
 > **Project**: Currency Convertr  
-> **Version**: 2.1.0  
+> **Version**: 2.1.0-draft (target design spec; package.json runtime version is 2.0.0)  
 > **Aesthetic**: Ultra-Clean Editorial Minimalism  
 > **Architecture**: Cross-Browser Web Extension (Manifest V3)
 
@@ -87,7 +87,7 @@ The palette is strictly restrained, avoiding decorative gradients, heavy borders
   - Primary text: High-contrast near-black `#111111` (Light) / `#FAFAFA` (Dark).
   - Secondary metadata & labels: Neutral `#888888` (Light) / `#A1A1AA` (Dark).
   - Tertiary accents: `#71717A` (Inactive toggle/subdued glyphs).
-  - Status indicator: `#10B981` (Emerald active conversion dot) / `#71717A` (Original state).
+  - Status indicator: `#10B981` (Emerald dot, strictly reserved for active `CONVERTED` state) / `#71717A` (Neutral dot for `OFFER`, `WORKING`, `ORIGINAL`, and `NOTHING_FOUND`; zero glow or box-shadow).
 - **Hairline Dividers**:
   - Pure vertical whitespace (`24px–32px`) is preferred over borders.
   - When division is structurally required, use whisper-quiet `1px solid rgba(0, 0, 0, 0.06)` (Light) or `1px solid rgba(255, 255, 255, 0.08)` (Dark). Boxy card wrappers are strictly banned.
@@ -149,10 +149,20 @@ Typography acts as the primary layout structure. Two font stacks govern all surf
 
 ### 1. Dynamic Island Capsule (`src/content/ui.js`)
 - **State Machine**:
-  - `HIDDEN`: `opacity: 0; transform: translate3d(-50%, -14px, 0) scale(0.92); pointer-events: none;`. Does not render or mount if converted count is 0.
-  - `COMPACT`: `30px` height, `0 12px` padding. Displays `6px` status dot (`#10B981` converted / `#71717A` original), currency pair (`EUR → USD`), and tabular count (`· 14`). Auto-collapses/fades after `3.5s` idle time.
-  - `EXPANDED` (on hover/focus): Morphs horizontally (`scale(1.015)`) via compositor properties to reveal live exchange rate (`1 EUR = 1.08 USD` in `--font-mono`), tactile pill toggle (`Original` / `Converted`), and quiet `×` dismiss button.
-- **Motion Timing**: Single transition on `transform`, `opacity`, and CSS Grid fractional tracks (`cubic-bezier(0.22, 1, 0.36, 1)`, `360ms`). Fallback to immediate transition under `@media (prefers-reduced-motion: reduce)`.
+  - `HIDDEN / UNMOUNTED`: `opacity: 0; transform: translate3d(-50%, -14px, 0) scale(0.92); pointer-events: none;`. Does not render or mount when idle on non-price pages.
+  - `OFFER`: Initial non-intrusive prompt triggered when the detector finds $\ge 3$ foreign prices on an unconfigured site (`mode === 'ask'`). OLED capsule displaying neutral dot (`#71717A`, strictly zero glow, no box-shadow), question `"Convert to USD?"` alongside tactile action `[Convert]` (`background: #27272a`, text `#fafafa`, `border-radius: 9999px`) and quiet link `[Not now]` (`#a1a1aa`). Specular hairline border (`1px solid rgba(255, 255, 255, 0.12)`) and floating depth shadow are retained.
+    - *Timer & Escape Rule*: **Never auto-hides or auto-collapses on a timer**. It remains until the user acts or navigates away. Pressing `Escape` dismisses the pill **only when keyboard focus is inside the pill's shadow root** (never via a global capture-phase listener on the host page). Clicking `[Not now]` or pressing scoped `Escape` dismisses it and suppresses offers for the session.
+  - `WORKING`: Intermediate state during rate retrieval and DOM mutation. Displays pulsating neutral dot (`#71717A`, strictly zero glow, no box-shadow) + typographic label `"Converting..."`. Interactive elements are temporarily disabled.
+  - `CONVERTED`: Resting state after successful conversion (`count > 0`). Displays `6px` status dot (`#10B981`, emerald strictly reserved for active converted prices), currency pair (`EUR → USD`), and tabular count (`· 14`).
+    - *Expand on hover/focus*: Morphs smoothly to reveal live exchange rate (`1 EUR = 1.08 USD` in `--font-mono`), tactile pill toggle (`Original` / `Converted`), currency selector, and quiet `×` dismiss button.
+    - *Auto-collapse Decision*: The originally documented 3.5s auto-collapse was never implemented in code. The active design retains the compact capsule persistently so the user can always revert or switch currencies; if expanded via hover, it returns to compact upon mouse leave. It **never** auto-dismisses the entire pill while viewing converted prices.
+    - *Follow-up Prompt Row* (only when entered via offer acceptance): Renders an adjacent row `"Always convert on <host>?"` with button `[Always]` and text link `[Just this time]`. Never times out; defaults to "just this time" if ignored and clears on navigation.
+  - `ORIGINAL`: State when user selects `[Original]` in the segmented control. Status dot switches to `#71717A` + label `"Showing original prices"`. Allows 1-click toggle back to `[Converted]`.
+  - `NOTHING_FOUND`: Triggered **only** by explicit manual invocations (popup or context menu) when zero prices are found on page. Displays status dot `#71717A` + `"No prices found on page"`. Automatically dismisses after `4.0s` or on scoped `Escape`. **Never triggered by auto-detection**.
+  - `ERROR`: Displays status dot `#F59E0B` (amber) + concise failure reason (e.g. `"Rates unavailable"`).
+- **Motion Mechanism & Implementation Gap**:
+  - *Intended Mechanism*: Strictly compositor-promoted properties (`transform: scale(...) translate3d(...)` and `opacity`) to guarantee 60fps with zero layout thrashing on complex pages.
+  - *Implementation Gap (Targeted for Step 06)*: Current CSS implementation in `ui.css` uses `grid-template-columns: 0fr -> 1fr` for horizontal expansion, which animates layout geometry. This will be refactored in step 06 to pure transform/clip-path transitions. Fallback to immediate transition under `@media (prefers-reduced-motion: reduce)`.
 
 ### 2. Typographic Interactive Converter (`src/popup/`)
 - Amount input styled as high-contrast borderless or hairline-underlined numeral field.
@@ -179,4 +189,7 @@ Typography acts as the primary layout structure. Two font stacks govern all surf
 - Never use heavy `backdrop-filter: blur()` on morphing elements.
 - Never use `requestAnimationFrame` polling loops for in-page animations.
 - Never use `innerHTML` anywhere in extension code.
-- Never convert prices or display the Dynamic Island pill when converted count is 0.
+- Never display the Dynamic Island pill from auto-detection when candidate count is less than MIN_PRICES (3). (Manual triggers show the NOTHING_FOUND state).
+- Never place a timer on the OFFER state or the "Always convert on this site?" follow-up prompt.
+- Never attach global or capture-phase Escape key listeners to the host page `window` or `document`. Escape dismissal must be scoped strictly to keyboard focus within the Dynamic Island Shadow Root.
+

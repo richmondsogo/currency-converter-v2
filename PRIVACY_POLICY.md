@@ -23,21 +23,22 @@ Specifically, Currency Convertr:
 
 ## 2. Local-Only In-Memory Processing
 
-When you invoke Currency Convertr—either via the toolbar popup, keyboard shortcut (`Alt+Shift+C`), right-click context menu, or on sites you have configured for automated conversion:
+When you interact with Currency Convertr—either via the toolbar popup, keyboard shortcut (`Alt+Shift+C`), right-click context menu, or on sites where automatic detection or conversion is active:
 
-1. **Local DOM Analysis**: The extension inspects text nodes and pricing elements on the active webpage **entirely locally within your browser tab**.
+1. **Local DOM Analysis & Candidate Detection**: The extension inspects text nodes and pricing elements on the active webpage **entirely locally within your browser tab**. A lightweight detector script executes at document idle in the top frame to evaluate whether candidate prices exist on the page; this scan is purely read-only and runs in volatile memory.
 2. **Volatile Memory**: Currency symbols, numbers, and ISO codes are processed purely in ephemeral JavaScript memory.
-3. **No External Transmission**: Page text, product descriptions, pricing history, and DOM structures **never leave your device**.
+3. **No External Transmission**: Page text, product descriptions, pricing history, and DOM structures **never leave your device**. No text or URL data is ever transmitted over the network or logged remotely.
 4. **Reversible Operation**: If you select "Show original", original text is restored directly from client-side memory without contacting any remote service.
 
 ---
 
 ## 3. Local Preferences Storage
 
-Currency Convertr uses the browser's local storage API (`chrome.storage.local`) exclusively on your device to persist:
+Currency Convertr uses local browser storage APIs (`chrome.storage.local` and `chrome.storage.session`) exclusively on your device to persist:
 - Your preferred target currency and display mode (Replace, Append, or Replace + Highlight).
 - Pinned currencies for the toolbar and context menu.
-- Custom per-site rules you have explicitly created (e.g., "Always convert on this site").
+- Custom per-site rules you have configured (mode: 'ask' | 'always' | 'never').
+- Temporary session suppression (`chrome.storage.session`) when you dismiss an offer with "Not now" (automatically cleared when the browser closes).
 - Cached foreign exchange rate tables (to reduce unnecessary network calls).
 
 This data is stored strictly in your local browser profile. It is **never** synchronized with any cloud server or transmitted off your machine.
@@ -72,21 +73,20 @@ To convert prices with live market data, the extension's background worker fetch
 
 ## 5. Browser Permissions and Justifications
 
-Currency Convertr adheres to the Principle of Least Privilege:
+Currency Convertr requests only permissions strictly necessary to execute its declared functionality:
 
 | Permission | Category | Technical Justification |
 |---|---|---|
-| `contextMenus` | API | Enables the right-click "Convert currency" menu item on selected text. |
+| `contextMenus` | API | Enables the right-click "Convert prices on this page" context menu item. |
 | `notifications` | API | Renders system desktop notifications for context-menu selection conversions. |
-| `storage` | API | Saves your preferences and caches exchange rates locally on your computer. |
-| `activeTab` | API | Grants temporary access to the active tab to execute in-page price conversion when you click "Convert this page" or use the keyboard shortcut. |
-| `scripting` | API | Injects the in-page price scanner and registers automated conversion scripts for sites you have explicitly approved. |
-| `optional_host_permissions` (`<all_urls>`) | Runtime Host | Requested **only** after an explicit user gesture if you choose to enable "Always convert on this site" or "Auto-convert on all sites". Never granted by default. |
-| `https://api.frankfurter.dev/*` | Host | Queries European Central Bank reference exchange rates. |
-| `https://cdn.jsdelivr.net/*` | Host | Queries exchange rate tables for 170+ global currencies via CDN. |
-| `https://latest.currency-api.pages.dev/*` | Host | Serves as tertiary fallback provider for rate data. |
+| `storage` | API | Saves preferences and caches exchange rates locally on your computer (`chrome.storage.local` and `chrome.storage.session`). |
+| `activeTab` | API | Grants temporary access to the active tab to execute in-page price conversion when triggered by user action. |
+| `scripting` | API | Executes content script injection into active tabs on user demand. |
+| `tabs` | API | Verifies active tab URL and restricted page schemes to route in-page status and prevent script injection on browser system pages. |
+| `<all_urls>` | Host Permission | Allows the in-page price conversion engine and lightweight detector script to detect and convert prices across international shopping websites. |
+| `http://*/*`, `https://*/*` | Host Permission | Declared for legacy host matching; redundant with `<all_urls>` and scheduled for cleanup. |
 
-The extension **never** requests sensitive permissions such as `tabs`, `webRequest`, `cookies`, or `history`.
+The extension **never** accesses or requests invasive permissions such as `webRequest`, `cookies`, or `history`. The `tabs` permission is strictly used to identify tab status and URL schemes, and browsing activity is never recorded.
 
 ---
 
@@ -107,5 +107,5 @@ Should this Privacy Policy be updated, the revised version will be published in 
 For inquiries, support, or security questions regarding this Privacy Policy:
 - **Developer:** Richmond Sogo
 - **Email:** `richmondsogo@gmail.com`
-- **Repository:** [https://github.com/richmondsogo/currency-converter-v2](https://github.com/richmondsogo/currency-converter-v2)
-- **Issue Tracker:** [GitHub Issues](https://github.com/richmondsogo/currency-converter-v2/issues)
+- **Repository:** [https://github.com/richmondsogo/currency-convertr](https://github.com/richmondsogo/currency-convertr)
+- **Issue Tracker:** [GitHub Issues](https://github.com/richmondsogo/currency-convertr/issues)
