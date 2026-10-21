@@ -511,6 +511,7 @@ export class PageScanner {
 
       this.convertedCount = 0;
       this.isConverted = false;
+      this.stopObserving();
       if (this.onConvertedCountChange) {
         this.onConvertedCountChange(0);
       }
@@ -536,7 +537,7 @@ export class PageScanner {
     const pendingAddedNodes = new Set();
 
     this.observer = new MutationObserverImpl((mutations) => {
-      if (this.isMutatingOwnDOM || !this.isConverted) return;
+      if (this.isMutatingOwnDOM) return;
 
       for (const m of mutations) {
         if (m.type === 'childList') {

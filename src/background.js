@@ -4,7 +4,7 @@ import { SettingsManager, DEFAULT_SETTINGS, getSiteMode, shouldAutoConvertPage, 
 import { formatCurrency } from './shared/format.js';
 import { detectCurrency, extractAmount } from './shared/parser.js';
 import { MSG } from './shared/messaging.js';
-import { getBrowser, sendTabMessage } from './shared/browser.js';
+import { getBrowser, sendTabMessage, ensureInjected } from './shared/browser.js';
 
 const api = getBrowser();
 const ratesEngine = new RatesEngine();
@@ -93,35 +93,23 @@ async function buildMenus() {
 // -----------------------------------------------------------------------------
 // 3. PAGE INJECTION & CONVERSION ORCHESTRATION
 // -----------------------------------------------------------------------------
-async function ensureContentScriptInjected(tabId) {
-  if (!api.scripting || !api.scripting.executeScript) return false;
-
-  // Ping tab to check if content script is already listening
-  const status = await sendTabMessage(tabId, { type: MSG.GET_PAGE_STATUS });
-  if (status !== null && status !== undefined) {
-    return true; // Already injected
-  }
-
-  // Inject content.js
-  try {
-    await api.scripting.executeScript({
-      target: { tabId, allFrames: true },
-      files: ['content.js']
-    });
-    return true;
-  } catch (err) {
-    console.warn('[CurrencyConverter] executeScript failed on tab', tabId, err.message);
-    return false;
-  }
-}
-
 async function convertPageOnTab(tabId, targetCurrency = null) {
-  const injected = await ensureContentScriptInjected(tabId);
+  const injected = await ensureInjected(tabId);
   if (!injected) return;
 
   const settings = await settingsManager.getSettings();
-  const target = targetCurrency || settings.lastUsedTarget || settings.targetCurrency || 'USD';
-  const ratesData = await ratesEngine.getRates();
+  const target = targetCurrency || settings.targetCurrency || settings.lastUsedTarget || 'USD';
+  let ratesData;
+  try {
+    ratesData = await ratesEngine.getRates();
+  } catch (err) {
+    console.warn('[CurrencyConverter] getRates failed, using fallback:', err.message);
+    ratesData = {
+      rates: { USD: 1, EUR: 0.92, GBP: 0.79, NGN: 1500, CAD: 1.35, AUD: 1.5, JPY: 150 },
+      date: new Date().toISOString().split('T')[0],
+      provider: 'Offline Fallback'
+    };
+  }
 
   // Remember last used target
   await settingsManager.updateSettings({ lastUsedTarget: target });
@@ -131,9 +119,9 @@ async function convertPageOnTab(tabId, targetCurrency = null) {
     type: MSG.CONVERT_PAGE,
     payload: {
       targetCurrency: target,
-      ratesTable: ratesData.rates,
-      rateDate: ratesData.date,
-      provider: ratesData.provider,
+      ratesTable: ratesData ? ratesData.rates : null,
+      rateDate: ratesData ? ratesData.date : null,
+      provider: ratesData ? ratesData.provider : null,
       displayMode: settings.displayMode,
       roundWhole: settings.roundWhole,
       showInPageBar: settings.showInPageBar
@@ -297,58 +285,25 @@ if (api && api.runtime && api.runtime.onMessage) {
   });
 }
 
-// Dynamic content script auto-convert registration / tabs.onUpdated fallback
-async function syncAutoConvertRules() {
-  try {
-    const settings = await settingsManager.getSettings();
-    const approvedSites = [];
-
-    for (const [hostname, rule] of Object.entries(settings.perSite || {})) {
-      const mode = rule?.mode ?? (rule?.autoConvert ? 'always' : undefined);
-      if (mode === 'always') {
-        approvedSites.push(normalizeHost(hostname));
-      }
-    }
-
-    // Try scripting.registerContentScripts if supported
-    if (api.scripting && api.scripting.registerContentScripts) {
-      try {
-        const existing = await api.scripting.getRegisteredContentScripts();
-        const existingIds = existing.map(s => s.id);
-        if (existingIds.includes('cc-autoconvert-sites')) {
-          await api.scripting.unregisterContentScripts({ ids: ['cc-autoconvert-sites'] });
-        }
-
-        if (approvedSites.length > 0) {
-          const matches = approvedSites.map(h => `*://*.${h}/*`).concat(approvedSites.map(h => `*://${h}/*`));
-          await api.scripting.registerContentScripts([{
-            id: 'cc-autoconvert-sites',
-            matches,
-            js: ['content.js'],
-            runAt: 'document_idle',
-            allFrames: true
-          }]);
-        }
-      } catch (scriptingErr) {
-        // Fallback handled via tabs.onUpdated
-      }
-    }
-  } catch {}
-}
-
-// tabs.onUpdated fallback for auto-convert origins
+// tabs.onUpdated auto-convert trigger for approved origins
 if (api && api.tabs && api.tabs.onUpdated) {
   api.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'complete' && tab && tab.url && tab.url.startsWith('http')) {
-      try {
-        const url = new URL(tab.url);
-        const settings = await settingsManager.getSettings();
-        const shouldAutoConvert = shouldAutoConvertPage(settings, url.hostname);
+    if (changeInfo.status === 'complete') {
+      const rawUrl = tab?.url || changeInfo?.url;
+      if (rawUrl && rawUrl.startsWith('http')) {
+        try {
+          const url = new URL(rawUrl);
+          const settings = await settingsManager.getSettings();
+          const shouldAutoConvert = shouldAutoConvertPage(settings, url.hostname);
 
-        if (shouldAutoConvert) {
-          await convertPageOnTab(tabId);
+          if (shouldAutoConvert) {
+            const target = settings.lastUsedTarget || settings.targetCurrency || 'USD';
+            await convertPageOnTab(tabId, target);
+          }
+        } catch (err) {
+          console.error('[CC Background] Auto-convert failed on tab:', tabId, err);
         }
-      } catch {}
+      }
     }
   });
 }
@@ -364,13 +319,17 @@ if (api && api.tabs && api.tabs.onRemoved) {
 if (api && api.runtime && api.runtime.onInstalled) {
   api.runtime.onInstalled.addListener(() => {
     buildMenus();
-    syncAutoConvertRules();
+    if (api.scripting && api.scripting.unregisterContentScripts) {
+      api.scripting.unregisterContentScripts({ ids: ['cc-autoconvert-sites'] }).catch(() => {});
+    }
   });
 }
 
 if (api && api.runtime && api.runtime.onStartup) {
   api.runtime.onStartup.addListener(() => {
     buildMenus();
-    syncAutoConvertRules();
+    if (api.scripting && api.scripting.unregisterContentScripts) {
+      api.scripting.unregisterContentScripts({ ids: ['cc-autoconvert-sites'] }).catch(() => {});
+    }
   });
 }

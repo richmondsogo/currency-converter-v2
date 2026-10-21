@@ -206,6 +206,15 @@ export function inferPageCurrency(doc) {
 export function detectCurrency(text, context = {}) {
   if (!text) return 'USD';
 
+  const trimmed = text.trim();
+  // Compound country-prefixed dollar symbols
+  if (/^(?:US|U\.S\.)\s*\$$/i.test(trimmed)) return 'USD';
+  if (/^(?:CA|CAD|C)\s*\$$/i.test(trimmed)) return 'CAD';
+  if (/^(?:AU|AUD|A)\s*\$$/i.test(trimmed)) return 'AUD';
+  if (/^(?:NZ|NZD)\s*\$$/i.test(trimmed)) return 'NZD';
+  if (/^(?:HK|HKD)\s*\$$/i.test(trimmed)) return 'HKD';
+  if (/^(?:SG|SGD|S)\s*\$$/i.test(trimmed)) return 'SGD';
+
   // 1. Check explicit multi-character and unambiguous symbols first (longest first)
   const explicitKeys = Object.keys(EXPLICIT_SYMBOL_MAP).sort((a, b) => b.length - a.length);
   for (const sym of explicitKeys) {
@@ -291,9 +300,9 @@ export function extractPrices(text, context = {}) {
     return 1;
   }
 
-  // Regex 1: Prefix currency symbol or code:
-  // e.g. from $10, -$12.50, ($15.00), (-$12.50), ₦ 14,500, € 15, CA$99.99
-  const prefixRegex = /(?:(\bfrom\s+)|(\()\s*(-)?|((?<!\d)-(?!\s)))?(CAD\$|CA\$|C\$|AUD\$|AU\$|A\$|NZ\$|HK\$|SG\$|S\$|US\$|U\.S\.\$|R\$|MX\$|Mex\$|COL\$|CLP\$|AR\$|GH₵|GHc|KSh|Ksh|CHF|SFr|Fr\.|€|£|¥|₦|₹|₩|zł|Kč|Ft|₺|₽|₴|₪|฿|₫|₱|RM|Rp|৳|\$|kr|\b[A-Z]{3}\b)\s*(\d(?:[\d,. \u00A0\u202F']*\d)?)(?:[\s\u00A0\u202F]*(k|m|b|bn))?(\)?)/gi;
+  // Regex 1: Prefix currency symbol or code with optional country prefix and optional trailing ISO code:
+  // e.g. from $10, -$12.50, ($15.00), (-$12.50), ₦ 14,500, € 15, CA$99.99, US $133.00, $25 CAD
+  const prefixRegex = /(?:(\bfrom\s+)|(\()\s*(-)?|((?<!\d)-(?!\s)))?(\b(?:US|U\.S\.|CA|CAD|AU|AUD|NZ|NZD|HK|HKD|SG|SGD|Mex|COL|CLP|AR)\s*\$|CAD\$|CA\$|C\$|AUD\$|AU\$|A\$|NZ\$|HK\$|SG\$|S\$|US\$|U\.S\.\$|R\$|MX\$|Mex\$|COL\$|CLP\$|AR\$|GH₵|GHc|KSh|Ksh|CHF|SFr|Fr\.|€|£|¥|₦|₹|₩|zł|Kč|Ft|₺|₽|₴|₪|฿|₫|₱|RM|Rp|৳|\$|kr|\b[A-Z]{3}\b)\s*(\d(?:[\d,. \u00A0\u202F']*\d)?)(?:[\s\u00A0\u202F]*(k|m|b|bn))?(\)?)(?:[\s\u00A0\u202F]+([A-Z]{3})\b)?/gi;
 
   // Regex 2: Suffix currency symbol or code:
   // e.g. 149,50 € / 100 kr / 99.00 USD
@@ -308,7 +317,7 @@ export function extractPrices(text, context = {}) {
   // Scan prefix matches
   let match;
   while ((match = prefixRegex.exec(text)) !== null) {
-    const raw = match[0];
+    let raw = match[0];
     const fromPrefix = match[1] || '';
     const openParen = match[2] || '';
     const minusInParen = match[3] || '';
@@ -317,10 +326,24 @@ export function extractPrices(text, context = {}) {
     const numPart = match[6];
     const multiplierSuffix = match[7] || '';
     const closeParen = match[8] || '';
+    const trailingIso = match[9] || '';
 
     // If symbol is just a 3-letter word, verify it is a valid currency ISO code
     if (/^[A-Z]{3}$/i.test(sym) && !CURRENCIES_DATA[sym.toUpperCase()]) {
       continue;
+    }
+
+    let currency;
+    if (trailingIso && CURRENCIES_DATA[trailingIso.toUpperCase()]) {
+      // Trailing ISO code is authoritative and consumed together with the price
+      currency = trailingIso.toUpperCase();
+    } else {
+      if (trailingIso) {
+        // Trailing 3-letter word is not a valid currency (e.g. "OFF", "FOR", etc.)
+        const lastIdx = raw.lastIndexOf(trailingIso);
+        raw = raw.slice(0, lastIdx).trimEnd();
+      }
+      currency = detectCurrency(sym, context);
     }
 
     const multiplier = getMultiplier(multiplierSuffix);
@@ -328,10 +351,10 @@ export function extractPrices(text, context = {}) {
     if (amount === null || isNaN(amount) || amount <= 0) continue;
 
     const isNegative = Boolean(minusInParen || minusNoParen || (openParen && closeParen));
-    const currency = detectCurrency(sym, context);
 
     const startIndex = match.index;
     const endIndex = match.index + raw.length;
+    prefixRegex.lastIndex = endIndex;
 
     if (!isOverlapping(startIndex, endIndex)) {
       matchedRanges.push([startIndex, endIndex]);

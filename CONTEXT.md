@@ -77,6 +77,10 @@ All conversion requests feed into a single, unified conversion pipeline in the b
 - **DOM Engine**: Two-phase DOM walker with regex boundary parsing, split-price inner-first assembly, and open Shadow DOM traversal with byte-for-byte revert fidelity.
 - **UI System**: Custom OLED Dynamic Island pill with zero runtime frameworks, zero external CSS dependencies, isolated inside an open Shadow DOM root.
 
+- **Site Mode & Rules**: Tri-state site mode (`mode: 'ask' | 'always' | 'never'`) migrated and active in v3 settings schema.
+- **Auto-Convert & Idempotency**: Consolidated into a single `tabs.onUpdated` mechanism; content script re-injection is strictly idempotent; top-frame isolated.
+- **Price Tokenization**: Trailing ISO codes (`$25 CAD`) and compound prefixes (`US $133.00`) fully consumed.
+
 ---
 
 ## Known Issues & Implementation Gaps
@@ -84,4 +88,4 @@ All conversion requests feed into a single, unified conversion pipeline in the b
 2. **Auto-Collapse Implementation Gap**: `DESIGN.md` documented a 3.5s auto-collapse for the Dynamic Island pill, but this was never wired in code. It must be explicitly defined for `CONVERTED` and forbidden for `OFFER`.
 3. **Motion Layout Reflow**: The pill expansion currently transitions `grid-template-columns: 0fr -> 1fr`, causing layout calculations rather than purely compositor-driven transforms.
 4. **Redundant Manifest Permissions**: `manifest.json` ships `host_permissions: ["<all_urls>", "http://*/*", "https://*/*"]` and `permissions: [..., "tabs"]`. The wildcard duplicates require cleanup.
-5. **Site Settings Schema**: Site preferences currently use dual booleans (`autoConvert`, `neverConvert`) which allow invalid states; must be migrated to a clean enum `mode: 'ask' | 'always' | 'never'`.
+5. **Combobox Component Overhaul**: Native `<select>` inside the Dynamic Island pill has a dark theme CSS stopgap (Step 05), but requires a full custom searchable combobox component.

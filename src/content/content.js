@@ -104,33 +104,38 @@ async function performConversion(options = {}) {
     return { success: false, error: 'Rates unavailable' };
   }
 
-  // If already converted, revert first to maintain clean DOM
-  if (currentScanner && isConverted) {
-    currentScanner.revert();
-  }
-
-  currentScanner = new PageScanner({
-    doc: document,
-    targetCurrency,
-    ratesTable: globalRates,
-    displayMode,
-    roundWhole,
-    rateDate,
-    provider: rateProvider,
-    onConvertedCountChange: (count) => {
-      if (currentUI) {
-        currentUI.update({ count });
-      }
-      notifyBackgroundOfStatus();
+  // If already converted to a different target currency, revert first
+  if (!currentScanner || currentScanner.targetCurrency !== targetCurrency.toUpperCase()) {
+    if (currentScanner && isConverted) {
+      currentScanner.revert();
     }
-  });
 
-  const convertedCount = currentScanner.convert();
-  isConverted = currentScanner.isConverted && convertedCount > 0;
+    currentScanner = new PageScanner({
+      doc: document,
+      targetCurrency,
+      ratesTable: globalRates,
+      displayMode,
+      roundWhole,
+      rateDate,
+      provider: rateProvider,
+      onConvertedCountChange: (count) => {
+        if (currentUI) {
+          currentUI.update({ count, isConverted: true });
+        }
+        notifyBackgroundOfStatus();
+      }
+    });
 
-  if (isConverted) {
-    currentScanner.startObserving();
+    currentScanner.convert();
+  } else {
+    // Same target currency: scan incrementally for newly added elements
+    currentScanner.convert();
   }
+
+  isConverted = true;
+  currentScanner.startObserving();
+
+  const convertedCount = currentScanner.convertedCount;
 
   // Mount or update Dynamic Island pill
   const isManual = Boolean(options.manual);
@@ -146,7 +151,7 @@ async function performConversion(options = {}) {
         doc: document,
         targetCurrency,
         sourceCurrency: primarySourceCurrency,
-        isConverted: convertedCount > 0,
+        isConverted: true,
         convertedCount,
         rateDate,
         provider: rateProvider,
@@ -164,7 +169,7 @@ async function performConversion(options = {}) {
       currentUI.mount(uiCssText);
     } else {
       currentUI.update({
-        isConverted: convertedCount > 0,
+        isConverted: true,
         targetCurrency,
         sourceCurrency: primarySourceCurrency,
         count: convertedCount,
@@ -193,7 +198,8 @@ async function performConversion(options = {}) {
     convertedCount,
     targetCurrency,
     alreadyTarget: convertedCount === 0,
-    detectedCurrencies: currentScanner ? Array.from(currentScanner.detectedCurrencies || []) : []
+    ratesDate: rateDate,
+    ratesProvider: rateProvider
   };
 }
 
@@ -204,109 +210,100 @@ function performRevert() {
   }
   isConverted = false;
   if (currentUI) {
-    currentUI.update({ isConverted: false });
+    currentUI.update({ isConverted: false, count: 0 });
   }
   notifyBackgroundOfStatus();
   return { success: true, count: 0 };
 }
 
-// Tooltip event delegation
-document.addEventListener('mouseover', (e) => {
-  if (!isConverted || !currentScanner || !currentUI) return;
-  const target = e.target;
-  if (!target || target.nodeType !== 1) return;
+function initContentScript() {
+  // Tooltip event delegation
+  document.addEventListener('mouseover', (e) => {
+    if (!isConverted || !currentScanner || !currentUI) return;
+    const target = e.target;
+    if (!target || target.nodeType !== 1) return;
 
-  const convertedEl = target.closest('[data-cc-converted]');
-  if (!convertedEl) return;
+    const convertedEl = target.closest('[data-cc-converted]');
+    if (!convertedEl) return;
 
-  const meta = currentScanner.conversionMetadata.get(convertedEl);
-  if (meta) {
-    currentUI.showTooltip({
-      originalAmount: meta.originalAmount,
-      originalCurrency: meta.originalCurrency,
-      convertedAmount: meta.convertedAmount,
-      rate: meta.rate,
-      date: meta.date,
-      targetElement: convertedEl,
-      x: e.clientX,
-      y: e.clientY
+    const meta = currentScanner.conversionMetadata.get(convertedEl);
+    if (meta) {
+      currentUI.showTooltip({
+        originalAmount: meta.originalAmount,
+        originalCurrency: meta.originalCurrency,
+        convertedAmount: meta.convertedAmount,
+        rate: meta.rate,
+        date: meta.date,
+        targetElement: convertedEl,
+        x: e.clientX,
+        y: e.clientY
+      });
+    }
+  }, { passive: true });
+
+  document.addEventListener('mouseout', (e) => {
+    if (!isConverted || !currentUI) return;
+    const target = e.target;
+    if (!target || target.nodeType !== 1) return;
+
+    if (target.closest('[data-cc-converted]')) {
+      currentUI.hideTooltip();
+    }
+  }, { passive: true });
+
+  // Message receiver from popup and background
+  if (api && api.runtime && api.runtime.onMessage) {
+    api.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (!message || !message.type) return;
+
+      if (message.type === MSG.CONVERT_PAGE) {
+        performConversion(message.payload || {})
+          .then(result => sendResponse(result))
+          .catch(err => sendResponse({ success: false, error: err.message }));
+        return true; // Keep channel open for async response
+      }
+
+      if (message.type === MSG.REVERT_PAGE) {
+        const res = performRevert();
+        sendResponse(res);
+        return false;
+      }
+
+      if (message.type === MSG.GET_PAGE_STATUS) {
+        sendResponse({
+          isConverted,
+          count: currentScanner ? currentScanner.convertedCount : 0,
+          targetCurrency: currentScanner ? currentScanner.targetCurrency : null,
+          rateDate,
+          rateProvider
+        });
+        return false;
+      }
     });
   }
-}, { passive: true });
 
-document.addEventListener('mouseout', (e) => {
-  if (!isConverted || !currentUI) return;
-  const target = e.target;
-  if (!target || target.nodeType !== 1) return;
-
-  if (target.closest('[data-cc-converted]')) {
-    currentUI.hideTooltip();
-  }
-}, { passive: true });
-
-// Message receiver from popup and background
-if (api && api.runtime && api.runtime.onMessage) {
-  api.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (!message || !message.type) return;
-
-    if (message.type === MSG.CONVERT_PAGE) {
-      performConversion(message.payload || {})
-        .then(result => sendResponse(result))
-        .catch(err => sendResponse({ success: false, error: err.message }));
-      return true; // Keep channel open for async response
-    }
-
-    if (message.type === MSG.REVERT_PAGE) {
-      const res = performRevert();
-      sendResponse(res);
-      return false;
-    }
-
-    if (message.type === MSG.GET_PAGE_STATUS) {
-      sendResponse({
-        isConverted,
-        count: currentScanner ? currentScanner.convertedCount : 0,
-        targetCurrency: currentScanner ? currentScanner.targetCurrency : null,
-        rateDate,
-        rateProvider
-      });
-      return false;
-    }
-  });
-}
-
-// Initialize on page load (check for auto-convert)
-async function initializeContentScript() {
-  try {
-    const settings = await sendMessage({ type: MSG.GET_SETTINGS });
-    if (settings) {
-      currentSettings = settings;
-      const shouldAutoConvert = shouldAutoConvertPage(settings, window.location.hostname);
-
-      if (shouldAutoConvert) {
-        performConversion();
+  // Standalone window message receiver for test rigs and headless verification
+  if (typeof window !== 'undefined') {
+    window.addEventListener('message', (event) => {
+      if (!event.data || typeof event.data !== 'object') return;
+      if (event.data.type === 'CC_MANUAL_CONVERT') {
+        performConversion(event.data);
+      } else if (event.data.type === 'CC_MANUAL_REVERT') {
+        performRevert();
       }
-    }
-  } catch (err) {
-    // Content script injected standalone or offline
+    });
   }
 }
 
-// Wait for document ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeContentScript);
-} else {
-  initializeContentScript();
-}
-
-// Standalone window message receiver for test rigs and headless verification
+// Top-level idempotency guard: re-injection is a clean no-op leaving existing instance intact
+// Top frame only: iframes are not converted for now
 if (typeof window !== 'undefined') {
-  window.addEventListener('message', (event) => {
-    if (!event.data || typeof event.data !== 'object') return;
-    if (event.data.type === 'CC_MANUAL_CONVERT') {
-      performConversion(event.data);
-    } else if (event.data.type === 'CC_MANUAL_REVERT') {
-      performRevert();
-    }
-  });
+  if (window !== window.top) {
+    // Child frame / iframe: do not mount or run
+  } else if (window.__CC_CONTENT_SCRIPT_INJECTED__) {
+    // Already initialized in this frame; do nothing
+  } else {
+    window.__CC_CONTENT_SCRIPT_INJECTED__ = true;
+    initContentScript();
+  }
 }

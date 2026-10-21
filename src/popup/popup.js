@@ -9,6 +9,7 @@ import {
   requestOriginPermission,
   hasOriginPermission,
   injectContentScript,
+  ensureInjected,
   getBrowser
 } from '../shared/browser.js';
 
@@ -517,7 +518,7 @@ async function triggerConvert(targetCur) {
   liveStatusEl.textContent = 'Scanning and converting...';
 
   try {
-    await injectContentScript(currentTab.id);
+    await ensureInjected(currentTab.id);
 
     const ratesData = await sendMessage({ type: MSG.GET_RATES });
     const norm = normalizeHost(currentHostname);

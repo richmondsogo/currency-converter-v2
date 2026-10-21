@@ -576,9 +576,12 @@ function setupEventListeners() {
   }
 
   selectDefaultTarget.addEventListener('change', (e) => {
-    if (currentSettings) currentSettings.targetCurrency = e.target.value;
+    if (currentSettings) {
+      currentSettings.targetCurrency = e.target.value;
+      currentSettings.lastUsedTarget = e.target.value;
+    }
     updateLivePreview();
-    savePartialSettings({ targetCurrency: e.target.value });
+    savePartialSettings({ targetCurrency: e.target.value, lastUsedTarget: e.target.value });
   });
 
   selectDisplayMode.addEventListener('change', (e) => {
