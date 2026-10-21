@@ -369,3 +369,55 @@ test('scanner: consecutive convert calls are strictly idempotent and do not dupl
   assert.equal(doc.body.innerHTML, originalHtml, 'Revert succeeds even after multiple convert passes');
 });
 
+test('scanner: Jumia Nigeria e-commerce price conversion and revert', () => {
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en-NG">
+    <head><title>Jumia Nigeria</title></head>
+    <body>
+      <div class="info">
+        <h3 class="name">Oraimo FreePods 4</h3>
+        <div class="prc">₦ 14,500</div>
+      </div>
+      <div class="info">
+        <h3 class="name">Samsung Galaxy A15</h3>
+        <div class="prc">₦ 120,000</div>
+      </div>
+      <div class="info">
+        <h3 class="name">Apple iPhone 15 Pro Max</h3>
+        <div class="prc">₦ 1,250,000</div>
+      </div>
+      <div class="info">
+        <h3 class="name">Smart Watch Series 9</h3>
+        <div class="prc">₦ 5,000 - ₦ 8,000</div>
+      </div>
+    </body>
+    </html>
+  `;
+  const dom = new JSDOM(html, { url: 'https://www.jumia.com.ng/phones-tablets/' });
+  const doc = dom.window.document;
+  const originalHtml = doc.body.innerHTML;
+
+  const scanner = new PageScanner({
+    doc,
+    targetCurrency: 'USD',
+    ratesTable: mockRates,
+    displayMode: 'replace'
+  });
+
+  const convertedCount = scanner.convert();
+  assert.ok(convertedCount > 0, 'convertedCount must be greater than 0');
+  assert.ok(scanner.isConverted, 'Scanner isConverted must be true');
+  assert.equal(scanner.primarySourceCurrency, 'NGN');
+  assert.ok(scanner.detectedCurrencies.has('NGN'));
+
+  // Confirm original ₦ prices were replaced with $
+  assert.ok(!doc.body.innerHTML.includes('₦ 14,500'));
+  assert.ok(!doc.body.innerHTML.includes('₦ 120,000'));
+  assert.ok(doc.body.innerHTML.includes('$'));
+
+  // Confirm byte-for-byte revert
+  scanner.revert();
+  assert.equal(doc.body.innerHTML, originalHtml, 'Revert must restore exact original Jumia HTML');
+});
+
