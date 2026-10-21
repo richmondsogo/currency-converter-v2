@@ -1,11 +1,12 @@
 # Currency Convertr
 
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](package.json)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-blue.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Chromium%20%7C%20Firefox-lightgrey.svg)](#cross-browser-compatibility)
-[![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)](#test-suite)
+[![Tests](https://img.shields.io/badge/Tests-51%20Passing-brightgreen.svg)](#test-suite)
 
-> **"Google Translate for prices"** — An intelligent, cross-browser extension that instantly converts every price on any webpage into your preferred currency in place, with a non-intrusive Translate-style floating bar and one-click restoration of original prices.
+> **"Google Translate for prices"** (v2.0.0) — An intelligent, cross-browser extension that instantly converts every price on any webpage into your preferred currency in place, with a non-intrusive Dynamic Island floating bar and one-click restoration of original prices.
 
 ---
 
@@ -107,19 +108,20 @@ flowchart TD
 
 ## Permission Model & Least Privilege
 
-Currency Convertr requests only the permissions strictly required to execute its declared functionality:
+Currency Convertr requests the following permissions in `manifest.json`:
 
 | Permission | Scope | Technical Justification |
 |---|---|---|
-| `contextMenus` | API | Enables the right-click "Convert currency" menu item and pinned currency submenus on selected text. |
-| `notifications` | API | Displays converted amounts and exchange rates for right-click text selections. |
-| `storage` | API | Persists user preferences and cached exchange rate tables locally (`chrome.storage.local`). |
-| `activeTab` | API | Grants temporary access to the active tab to execute in-page conversion when the user clicks the toolbar button or presses the keyboard shortcut. |
-| `scripting` | API | Injects the content script into the active tab on user demand and registers auto-conversion scripts for approved domains. |
-| `optional_host_permissions` (`<all_urls>`) | Runtime Host | Requested **only** when the user explicitly enables "Always convert on this site" or "Auto-convert on all sites". Never granted by default. |
-| `https://api.frankfurter.dev/*` | Static Host | Fetches official European Central Bank reference exchange rates. |
-| `https://cdn.jsdelivr.net/*` | Static Host | Fetches open exchange rate tables for 170+ global and regional currencies. |
-| `https://latest.currency-api.pages.dev/*` | Static Host | Serves as tertiary fallback provider if primary and CDN rate hosts are unavailable. |
+| `contextMenus` | API | Enables the right-click "Convert prices on this page" context menu item. |
+| `notifications` | API | Displays quick conversion notifications for right-click text selections. |
+| `storage` | API | Persists user preferences and cached exchange rate tables locally (`chrome.storage.local` and `chrome.storage.session`). |
+| `activeTab` | API | Grants temporary access to the active tab to execute in-page conversion on user demand. |
+| `scripting` | API | Executes content script injection into active tabs upon conversion request. |
+| `tabs` | API | Queries active tab properties (URL, restricted scheme verification) to route conversion commands and status. |
+| `<all_urls>` | Host Permission | Allows the in-page price conversion engine and lightweight detector script to detect and convert prices across international shopping websites. |
+| `http://*/*`, `https://*/*` | Host Permission | *(Redundant with `<all_urls>`; currently declared in manifest and scheduled for cleanup in a future step).* |
+
+> **Planned Permission Cleanup**: The explicit wildcard entries `http://*/*` and `https://*/*` are redundant alongside `<all_urls>` and will be removed in an upcoming maintenance step.
 
 ---
 
@@ -132,8 +134,8 @@ Currency Convertr requests only the permissions strictly required to execute its
 ### 1. Build the Extension
 ```bash
 # Clone the repository
-git clone https://github.com/richmondsogo/currency-converter-v2.git
-cd currency-converter-v2
+git clone https://github.com/richmondsogo/currency-convertr.git
+cd currency-convertr
 
 # Install dependencies
 npm install
@@ -157,7 +159,7 @@ npm run build
 
 ## Testing & Verification
 
-The repository includes a comprehensive automated test suite with 40 unit and DOM integration tests:
+The repository includes a comprehensive automated test suite with 51 unit and DOM integration tests:
 
 ```bash
 # Run all unit, DOM, and build tests
@@ -171,8 +173,9 @@ npm run lint:firefox
 
 ## Privacy Policy Summary
 
-- **Local-Only Processing**: All webpage text and DOM scanning occurs strictly on your device inside volatile memory. Nothing about your browsing history, page contents, or URLs is ever recorded, stored on a remote server, or shared.
-- **Zero Telemetry**: No analytics beacons, no crash tracking SDKs, no advertising libraries, and no user tracking.
+- **Local-Only Processing**: All webpage text inspection, candidate price detection, and DOM scanning occur strictly on your device inside volatile memory. Nothing about your browsing history, page contents, or URLs is ever recorded, transmitted, or shared.
+- **Detector Script Privacy Guarantee**: The lightweight static detector reads text nodes locally in the active tab solely to count potential price patterns. It transmits zero data over the network and never logs page content.
+- **Zero Telemetry**: No analytics beacons, no crash tracking SDKs, no advertising libraries, and no user profiling.
 - **Anonymous Rate Requests**: Foreign exchange rate queries request public rate tables (base EUR) and never transmit user-specific data.
 
 For our full privacy disclosures, see [PRIVACY_POLICY.md](PRIVACY_POLICY.md).

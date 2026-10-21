@@ -66,9 +66,9 @@ Ran `npm test`:
 6. `fd5021d`: `feat(popup,options): enhance popup and options with restricted page guard and design tokens`
 7. `6e13637`: `test(visual): add verification scripts and UI render screenshots`
 8. `c6c7401`: `build: update compiled distribution bundles and packages for Chrome and Firefox`
-9. (This commit): `docs: record step 01 local state snapshot log`
+9. `9dd5a57`: `docs: record step 01 local state snapshot log`
 
 ## Provenance
 - First commit SHA: `023f80f`
-- Last commit SHA: `c6c7401` (before step doc commit)
-- Merge commit SHA: (Recorded upon merge to main)
+- Last commit SHA: `9dd5a57`
+- Merge commit SHA: `3d2864b`
