@@ -302,11 +302,11 @@ export function extractPrices(text, context = {}) {
 
   // Regex 1: Prefix currency symbol or code with optional country prefix and optional trailing ISO code:
   // e.g. from $10, -$12.50, ($15.00), (-$12.50), ₦ 14,500, € 15, CA$99.99, US $133.00, $25 CAD
-  const prefixRegex = /(?:(\bfrom\s+)|(\()\s*(-)?|((?<!\d)-(?!\s)))?(\b(?:US|U\.S\.|CA|CAD|AU|AUD|NZ|NZD|HK|HKD|SG|SGD|Mex|COL|CLP|AR)\s*\$|CAD\$|CA\$|C\$|AUD\$|AU\$|A\$|NZ\$|HK\$|SG\$|S\$|US\$|U\.S\.\$|R\$|MX\$|Mex\$|COL\$|CLP\$|AR\$|GH₵|GHc|KSh|Ksh|CHF|SFr|Fr\.|€|£|¥|₦|₹|₩|zł|Kč|Ft|₺|₽|₴|₪|฿|₫|₱|RM|Rp|৳|\$|kr|\b[A-Z]{3}\b)\s*(\d(?:[\d,. \u00A0\u202F']*\d)?)(?:[\s\u00A0\u202F]*(k|m|b|bn))?(\)?)(?:[\s\u00A0\u202F]+([A-Z]{3})\b)?/gi;
+  const prefixRegex = /(?:(\bfrom\s+)|(\()\s*(-)?|((?<!\d)-(?!\s)))?(\b(?:US|U\.S\.|CA|CAD|AU|AUD|NZ|NZD|HK|HKD|SG|SGD|Mex|COL|CLP|AR)\s*\$|CAD\$|CA\$|C\$|AUD\$|AU\$|A\$|NZ\$|HK\$|SG\$|S\$|US\$|U\.S\.\$|R\$|MX\$|Mex\$|COL\$|CLP\$|AR\$|GH₵|GHc|KSh|Ksh|CHF|SFr|Fr\.|€|£|¥|₦|₹|₩|zł|Kč|Ft|₺|₽|₴|₪|฿|₫|₱|RM|Rp|৳|\$|kr|\b[A-Z]{3}\b)\s*(\d(?:[\d,. \u00A0\u202F']*\d)?)(?:[\s\u00A0\u202F]*(k|m|b|bn)\b)?(\)?)(?:[\s\u00A0\u202F]+([A-Z]{3})\b)?/gi;
 
   // Regex 2: Suffix currency symbol or code:
   // e.g. 149,50 € / 100 kr / 99.00 USD
-  const suffixRegex = /(?:(\bfrom\s+)|(\()\s*(-)?|((?<!\d)-(?!\s)))?(\d(?:[\d,. \u00A0\u202F']*\d)?)(?:[\s\u00A0\u202F]*(k|m|b|bn))?\s*(CAD\$|CA\$|C\$|AUD\$|AU\$|A\$|NZ\$|HK\$|SG\$|S\$|US\$|U\.S\.\$|R\$|MX\$|Mex\$|COL\$|CLP\$|AR\$|GH₵|GHc|KSh|Ksh|CHF|SFr|Fr\.|€|£|¥|₦|₹|₩|zł|Kč|Ft|₺|₽|₴|₪|฿|₫|₱|RM|Rp|৳|\$|kr|\b[A-Z]{3}\b)(\)?)/gi;
+  const suffixRegex = /(?:(\bfrom\s+)|(\()\s*(-)?|((?<!\d)-(?!\s)))?(\d(?:[\d,. \u00A0\u202F']*\d)?)(?:[\s\u00A0\u202F]*(k|m|b|bn)\b)?\s*(CAD\$|CA\$|C\$|AUD\$|AU\$|A\$|NZ\$|HK\$|SG\$|S\$|US\$|U\.S\.\$|R\$|MX\$|Mex\$|COL\$|CLP\$|AR\$|GH₵|GHc|KSh|Ksh|CHF|SFr|Fr\.|€|£|¥|₦|₹|₩|zł|Kč|Ft|₺|₽|₴|₪|฿|₫|₱|RM|Rp|৳|\$|kr|\b[A-Z]{3}\b)(\)?)/gi;
 
   const matchedRanges = [];
 
