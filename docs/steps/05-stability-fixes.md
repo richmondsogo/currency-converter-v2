@@ -4,9 +4,9 @@
 - **Target Branch**: `main`
 - **Status**: COMPLETE
 - **Previous Step (Step 04) Merge Commit SHA on Main**: `db6be37`
-- **PR URL**: (Recorded upon PR creation)
+- **PR URL**: https://github.com/richmondsogo/currency-convertr/pull/9
 - **First Commit SHA (Part A)**: `4e38e85`
-- **Last Content Commit SHA (Part B)**: (Recorded upon commit)
+- **Last Content Commit SHA (Part B)**: `9ac6db9`
 
 ---
 
