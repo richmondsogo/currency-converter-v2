@@ -979,6 +979,13 @@ button, input, select {
   font-weight: 500;
 }
 
+.rule-mode-select {
+  height: 32px;
+  font-size: 13px;
+  padding: 0 8px;
+  width: 120px;
+}
+
 /* Behavior Badges */
 .badge-tag {
   display: inline-flex;
