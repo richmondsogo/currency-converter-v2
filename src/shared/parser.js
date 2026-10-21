@@ -292,12 +292,12 @@ export function extractPrices(text, context = {}) {
   }
 
   // Regex 1: Prefix currency symbol or code:
-  // e.g. (-?|\(?)(\$|€|£|¥|₦|₹|₩|zł|Kč|CA\$|AU\$|NZ\$|HK\$|US\$|R\$|CHF|KSh|GH₵|[A-Z]{3})\s*(\d[\d,. \u00A0\u202F']*)(k|m|b|bn)?(\)?)
-  const prefixRegex = /(?:(\bfrom\s+)?(\(?)(\b-\s*|-\s*)?)?(CAD\$|CA\$|C\$|AUD\$|AU\$|A\$|NZ\$|HK\$|SG\$|S\$|US\$|U\.S\.\$|R\$|MX\$|Mex\$|COL\$|CLP\$|AR\$|GH₵|GHc|KSh|Ksh|CHF|SFr|Fr\.|€|£|¥|₦|₹|₩|zł|Kč|Ft|₺|₽|₴|₪|฿|₫|₱|RM|Rp|৳|\$|kr|\b[A-Z]{3}\b)\s*(\d(?:[\d,. \u00A0\u202F']*\d)?)(?:[\s\u00A0\u202F]*(k|m|b|bn))?(\)?)/gi;
+  // e.g. from $10, -$12.50, ($15.00), (-$12.50), ₦ 14,500, € 15, CA$99.99
+  const prefixRegex = /(?:(\bfrom\s+)|(\()\s*(-)?|((?<!\d)-(?!\s)))?(CAD\$|CA\$|C\$|AUD\$|AU\$|A\$|NZ\$|HK\$|SG\$|S\$|US\$|U\.S\.\$|R\$|MX\$|Mex\$|COL\$|CLP\$|AR\$|GH₵|GHc|KSh|Ksh|CHF|SFr|Fr\.|€|£|¥|₦|₹|₩|zł|Kč|Ft|₺|₽|₴|₪|฿|₫|₱|RM|Rp|৳|\$|kr|\b[A-Z]{3}\b)\s*(\d(?:[\d,. \u00A0\u202F']*\d)?)(?:[\s\u00A0\u202F]*(k|m|b|bn))?(\)?)/gi;
 
   // Regex 2: Suffix currency symbol or code:
   // e.g. 149,50 € / 100 kr / 99.00 USD
-  const suffixRegex = /(?:(\bfrom\s+)?(\(?)(\b-\s*|-\s*)?)?(\d(?:[\d,. \u00A0\u202F']*\d)?)(?:[\s\u00A0\u202F]*(k|m|b|bn))?\s*(CAD\$|CA\$|C\$|AUD\$|AU\$|A\$|NZ\$|HK\$|SG\$|S\$|US\$|U\.S\.\$|R\$|MX\$|Mex\$|COL\$|CLP\$|AR\$|GH₵|GHc|KSh|Ksh|CHF|SFr|Fr\.|€|£|¥|₦|₹|₩|zł|Kč|Ft|₺|₽|₴|₪|฿|₫|₱|RM|Rp|৳|\$|kr|\b[A-Z]{3}\b)(\)?)/gi;
+  const suffixRegex = /(?:(\bfrom\s+)|(\()\s*(-)?|((?<!\d)-(?!\s)))?(\d(?:[\d,. \u00A0\u202F']*\d)?)(?:[\s\u00A0\u202F]*(k|m|b|bn))?\s*(CAD\$|CA\$|C\$|AUD\$|AU\$|A\$|NZ\$|HK\$|SG\$|S\$|US\$|U\.S\.\$|R\$|MX\$|Mex\$|COL\$|CLP\$|AR\$|GH₵|GHc|KSh|Ksh|CHF|SFr|Fr\.|€|£|¥|₦|₹|₩|zł|Kč|Ft|₺|₽|₴|₪|฿|₫|₱|RM|Rp|৳|\$|kr|\b[A-Z]{3}\b)(\)?)/gi;
 
   const matchedRanges = [];
 
@@ -311,11 +311,12 @@ export function extractPrices(text, context = {}) {
     const raw = match[0];
     const fromPrefix = match[1] || '';
     const openParen = match[2] || '';
-    const minusSign = match[3] || '';
-    const sym = match[4];
-    const numPart = match[5];
-    const multiplierSuffix = match[6] || '';
-    const closeParen = match[7] || '';
+    const minusInParen = match[3] || '';
+    const minusNoParen = match[4] || '';
+    const sym = match[5];
+    const numPart = match[6];
+    const multiplierSuffix = match[7] || '';
+    const closeParen = match[8] || '';
 
     // If symbol is just a 3-letter word, verify it is a valid currency ISO code
     if (/^[A-Z]{3}$/i.test(sym) && !CURRENCIES_DATA[sym.toUpperCase()]) {
@@ -326,7 +327,7 @@ export function extractPrices(text, context = {}) {
     const amount = parseNumberString(numPart, multiplier);
     if (amount === null || isNaN(amount) || amount <= 0) continue;
 
-    const isNegative = Boolean(minusSign || (openParen && closeParen));
+    const isNegative = Boolean(minusInParen || minusNoParen || (openParen && closeParen));
     const currency = detectCurrency(sym, context);
 
     const startIndex = match.index;
@@ -353,11 +354,12 @@ export function extractPrices(text, context = {}) {
     const raw = match[0];
     const fromPrefix = match[1] || '';
     const openParen = match[2] || '';
-    const minusSign = match[3] || '';
-    const numPart = match[4];
-    const multiplierSuffix = match[5] || '';
-    const sym = match[6];
-    const closeParen = match[7] || '';
+    const minusInParen = match[3] || '';
+    const minusNoParen = match[4] || '';
+    const numPart = match[5];
+    const multiplierSuffix = match[6] || '';
+    const sym = match[7];
+    const closeParen = match[8] || '';
 
     if (/^[A-Z]{3}$/i.test(sym) && !CURRENCIES_DATA[sym.toUpperCase()]) {
       continue;
@@ -372,7 +374,7 @@ export function extractPrices(text, context = {}) {
     const amount = parseNumberString(numPart, multiplier);
     if (amount === null || isNaN(amount) || amount <= 0) continue;
 
-    const isNegative = Boolean(minusSign || (openParen && closeParen));
+    const isNegative = Boolean(minusInParen || minusNoParen || (openParen && closeParen));
     const currency = detectCurrency(sym, context);
 
     const startIndex = match.index;

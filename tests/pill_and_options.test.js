@@ -161,3 +161,39 @@ test('ui: InPageUI lifecycle, segmented switch, collapse, and updates', () => {
   ui.unmount();
   assert.equal(ui.rootContainer, null);
 });
+
+test('popup: isRestrictedPage correctly identifies system vs web pages', async () => {
+  const { isRestrictedPage } = await import('../src/popup/popup.js');
+
+  assert.equal(isRestrictedPage(undefined), false);
+  assert.equal(isRestrictedPage(''), false);
+  assert.equal(isRestrictedPage('https://www.jumia.com.ng/'), false);
+  assert.equal(isRestrictedPage('http://localhost:3000'), false);
+  assert.equal(isRestrictedPage('https://amazon.com'), false);
+  assert.equal(isRestrictedPage('chrome://extensions'), true);
+  assert.equal(isRestrictedPage('edge://settings'), true);
+  assert.equal(isRestrictedPage('about:blank'), true);
+  assert.equal(isRestrictedPage('moz-extension://some-uuid/popup.html'), true);
+  assert.equal(isRestrictedPage('chrome-extension://some-id/options.html'), true);
+  assert.equal(isRestrictedPage('https://chromewebstore.google.com/detail/123'), true);
+  assert.equal(isRestrictedPage('https://addons.mozilla.org/en-US/firefox/addon/123'), true);
+});
+
+test('ui: Dynamic Island pill displays source -> target currency in compact view', () => {
+  const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+  const doc = dom.window.document;
+
+  const ui = new InPageUI({
+    doc,
+    sourceCurrency: 'NGN',
+    targetCurrency: 'USD',
+    isConverted: true,
+    convertedCount: 4
+  });
+  ui.mount();
+
+  const codeSpan = ui.barElement.querySelector('.cc-currency-code');
+  assert.equal(codeSpan.textContent, 'NGN → USD');
+  const countBadge = ui.barElement.querySelector('.cc-count-badge');
+  assert.equal(countBadge.textContent, '4');
+});

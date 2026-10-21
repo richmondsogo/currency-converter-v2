@@ -7,6 +7,7 @@ import {
   getActiveTab,
   requestOriginPermission,
   hasOriginPermission,
+  injectContentScript,
   getBrowser
 } from '../shared/browser.js';
 
@@ -21,23 +22,24 @@ let isPageConverted = false;
 let allCurrenciesList = [];
 
 // DOM Elements
-const btnConvertToggle = document.getElementById('btn-convert-toggle');
-const liveStatusEl = document.getElementById('live-status');
-const unsupportedNoticeEl = document.getElementById('unsupported-notice');
-const mainControlsEl = document.getElementById('main-controls');
-const pickerBtn = document.getElementById('picker-to-btn');
-const selectedTargetText = document.getElementById('selected-target-text');
-const currencyDropdown = document.getElementById('currency-dropdown');
-const currencySearchInput = document.getElementById('currency-search-input');
-const currencyOptionsList = document.getElementById('currency-options-list');
-const toggleAlwaysSite = document.getElementById('toggle-always-site');
-const toggleNeverSite = document.getElementById('toggle-never-site');
-const siteCurrencyOverride = document.getElementById('site-currency-override');
-const currentDomainLabel = document.getElementById('current-domain-label');
-const ratesFreshnessText = document.getElementById('rates-freshness-text');
-const btnRetryRates = document.getElementById('btn-retry-rates');
-const btnOpenOptions = document.getElementById('btn-open-options');
-const linkOptions = document.getElementById('link-options');
+const doc = typeof document !== 'undefined' ? document : null;
+const btnConvertToggle = doc?.getElementById('btn-convert-toggle');
+const liveStatusEl = doc?.getElementById('live-status');
+const unsupportedNoticeEl = doc?.getElementById('unsupported-notice');
+const mainControlsEl = doc?.getElementById('main-controls');
+const pickerBtn = doc?.getElementById('picker-to-btn');
+const selectedTargetText = doc?.getElementById('selected-target-text');
+const currencyDropdown = doc?.getElementById('currency-dropdown');
+const currencySearchInput = doc?.getElementById('currency-search-input');
+const currencyOptionsList = doc?.getElementById('currency-options-list');
+const toggleAlwaysSite = doc?.getElementById('toggle-always-site');
+const toggleNeverSite = doc?.getElementById('toggle-never-site');
+const siteCurrencyOverride = doc?.getElementById('site-currency-override');
+const currentDomainLabel = doc?.getElementById('current-domain-label');
+const ratesFreshnessText = doc?.getElementById('rates-freshness-text');
+const btnRetryRates = doc?.getElementById('btn-retry-rates');
+const btnOpenOptions = doc?.getElementById('btn-open-options');
+const linkOptions = doc?.getElementById('link-options');
 
 function openOptionsPage(e) {
   if (e) e.preventDefault();
@@ -48,8 +50,8 @@ function openOptionsPage(e) {
   }
 }
 
-btnOpenOptions.addEventListener('click', openOptionsPage);
-linkOptions.addEventListener('click', openOptionsPage);
+btnOpenOptions?.addEventListener('click', openOptionsPage);
+linkOptions?.addEventListener('click', openOptionsPage);
 
 function applyTheme(theme) {
   if (theme === 'dark') {
@@ -61,68 +63,101 @@ function applyTheme(theme) {
   }
 }
 
-async function initPopup() {
-  currentTab = await getActiveTab();
-  allCurrenciesList = getAllCurrencies({ includeCrypto: false });
-
-  // 1. Populate site currency override options
-  populateOverrideDropdown();
-
-  // 2. Validate current URL
-  if (!currentTab || !currentTab.url) {
-    showUnsupportedState();
-    return;
+export function isRestrictedPage(url) {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return (
+      trimmed.includes('chromewebstore.google.com') ||
+      trimmed.includes('addons.mozilla.org')
+    );
   }
+  return (
+    /^(chrome|edge|brave|about|moz-extension|chrome-extension|view-source|chrome-error):/i.test(trimmed) ||
+    trimmed.includes('chromewebstore.google.com') ||
+    trimmed.includes('addons.mozilla.org')
+  );
+}
 
-  const url = currentTab.url;
-  if (
-    url.startsWith('chrome://') ||
-    url.startsWith('chrome-extension://') ||
-    url.startsWith('moz-extension://') ||
-    url.startsWith('about:') ||
-    url.startsWith('edge://') ||
-    url.includes('addons.mozilla.org') ||
-    url.includes('chromewebstore.google.com')
-  ) {
-    showUnsupportedState();
-    return;
-  }
+export const isRestrictedUrl = isRestrictedPage;
 
-  try {
-    const parsed = new URL(url);
-    currentHostname = parsed.hostname;
-    currentOrigin = parsed.origin;
-    currentDomainLabel.textContent = currentHostname;
-  } catch {
-    showUnsupportedState();
-    return;
-  }
-
-  // 3. Load settings
-  try {
-    const settings = await sendMessage({ type: MSG.GET_SETTINGS });
-    if (settings) {
-      currentSettings = settings;
-      applyTheme(settings.theme);
-      selectedTargetCurrency = settings.lastUsedTarget || settings.targetCurrency || 'USD';
-      updateSelectedTargetUI(selectedTargetCurrency);
-      initSiteRulesUI();
+async function sendTabMessageWithRetry(tabId, message, maxAttempts = 3) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await sendTabMessage(tabId, message);
+      if (response !== null && response !== undefined) {
+        return response;
+      }
+    } catch {
+      // Content script may still be registering listeners
     }
+    if (attempt < maxAttempts) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+  }
+  return null;
+}
+
+async function initPopup() {
+  allCurrenciesList = getAllCurrencies({ includeCrypto: false });
+  populateOverrideDropdown();
+  setupCurrencyPicker();
+  setupActionListeners();
+
+  // 1. Decoupled parallel load of rates status & settings at the very start
+  const ratesPromise = loadRatesStatus();
+  const settingsPromise = (async () => {
+    try {
+      const settings = await sendMessage({ type: MSG.GET_SETTINGS });
+      if (settings) {
+        currentSettings = settings;
+        applyTheme(settings.theme);
+        selectedTargetCurrency = settings.lastUsedTarget || settings.targetCurrency || 'USD';
+        updateSelectedTargetUI(selectedTargetCurrency);
+      }
+    } catch (err) {
+      console.warn('[Popup] Could not load settings:', err);
+    }
+  })();
+
+  await Promise.allSettled([ratesPromise, settingsPromise]);
+
+  // 2. Query active tab
+  try {
+    currentTab = await getActiveTab();
   } catch (err) {
-    console.warn('[Popup] Could not load settings:', err);
+    console.warn('[Popup] Could not get active tab:', err);
   }
 
-  // 4. Fetch Rates status
-  await loadRatesStatus();
+  const tabUrl = currentTab?.url;
+  const isRestricted = isRestrictedPage(tabUrl);
 
-  // 5. Query active page conversion status
+  if (isRestricted) {
+    showUnsupportedState();
+    return;
+  }
+
+  // Parse hostname and origin if URL is available
+  if (tabUrl) {
+    try {
+      const parsed = new URL(tabUrl);
+      currentHostname = parsed.hostname.replace(/^www\./, '');
+      currentOrigin = parsed.origin;
+      currentDomainLabel.textContent = currentHostname;
+    } catch {
+      currentHostname = '';
+      currentDomainLabel.textContent = 'Current tab';
+    }
+  } else {
+    currentHostname = '';
+    currentDomainLabel.textContent = 'Current tab';
+  }
+
+  // Initialize site rules UI with loaded settings and current hostname
+  initSiteRulesUI();
+
+  // 3. Query active page conversion status
   await checkPageStatus();
-
-  // 6. Setup combobox
-  setupCurrencyPicker();
-
-  // 7. Setup event handlers
-  setupActionListeners();
 }
 
 function showUnsupportedState() {
@@ -184,17 +219,25 @@ async function loadRatesStatus() {
   }
 }
 
-btnRetryRates.addEventListener('click', async () => {
+btnRetryRates?.addEventListener('click', async () => {
   await loadRatesStatus();
 });
 
 async function checkPageStatus() {
   if (!currentTab || !currentTab.id) return;
+  if (isRestrictedPage(currentTab.url)) return;
 
   try {
-    const status = await sendTabMessage(currentTab.id, { type: MSG.GET_PAGE_STATUS });
+    let status = await sendTabMessage(currentTab.id, { type: MSG.GET_PAGE_STATUS });
+    if (!status) {
+      await injectContentScript(currentTab.id);
+      await new Promise(r => setTimeout(r, 100));
+      status = await sendTabMessage(currentTab.id, { type: MSG.GET_PAGE_STATUS });
+    }
+
     if (status && status.isConverted) {
       isPageConverted = true;
+      btnConvertToggle.disabled = false;
       btnConvertToggle.textContent = 'Show original';
       btnConvertToggle.classList.add('active-revert');
       liveStatusEl.classList.add('converted');
@@ -205,14 +248,16 @@ async function checkPageStatus() {
       }
     } else {
       isPageConverted = false;
+      btnConvertToggle.disabled = false;
       btnConvertToggle.textContent = 'Convert this page';
       btnConvertToggle.classList.remove('active-revert');
       liveStatusEl.classList.remove('converted', 'converting');
       liveStatusEl.textContent = 'Ready to convert';
     }
   } catch {
-    // Content script not yet injected
+    // Content script not yet injected/responding, keep Convert button enabled
     isPageConverted = false;
+    btnConvertToggle.disabled = false;
     btnConvertToggle.textContent = 'Convert this page';
     btnConvertToggle.classList.remove('active-revert');
     liveStatusEl.classList.remove('converted', 'converting');
@@ -452,50 +497,68 @@ async function saveSiteRule(rulePatch) {
 
 async function triggerConvert(targetCur) {
   if (!currentTab || !currentTab.id) return;
+  if (isRestrictedPage(currentTab.url)) {
+    liveStatusEl.classList.remove('converting', 'converted');
+    liveStatusEl.textContent = 'Cannot run on browser system pages';
+    return;
+  }
+
   btnConvertToggle.disabled = true;
   liveStatusEl.classList.remove('converted');
   liveStatusEl.classList.add('converting');
   liveStatusEl.textContent = 'Scanning and converting...';
 
   try {
-    // Inject script if needed
-    if (api.scripting && api.scripting.executeScript) {
-      await api.scripting.executeScript({
-        target: { tabId: currentTab.id, allFrames: true },
-        files: ['content.js']
-      }).catch(() => {});
-    }
+    await injectContentScript(currentTab.id);
 
     const ratesData = await sendMessage({ type: MSG.GET_RATES });
-    const siteRule = currentSettings?.perSite && currentSettings.perSite[currentHostname];
+    const siteRule = currentSettings?.perSite && currentHostname && currentSettings.perSite[currentHostname];
 
-    const response = await sendTabMessage(currentTab.id, {
+    const convertPayload = {
+      manual: true,
+      targetCurrency: targetCur,
+      ratesTable: ratesData ? ratesData.rates : null,
+      rateDate: ratesData ? ratesData.date : null,
+      provider: ratesData ? ratesData.provider : null,
+      displayMode: currentSettings?.displayMode || 'replace',
+      roundWhole: currentSettings?.roundWhole || false,
+      showInPageBar: currentSettings?.showInPageBar !== false,
+      siteOverride: siteRule?.assumedCurrency || null
+    };
+
+    let response = await sendTabMessageWithRetry(currentTab.id, {
       type: MSG.CONVERT_PAGE,
-      payload: {
-        targetCurrency: targetCur,
-        ratesTable: ratesData.rates,
-        rateDate: ratesData.date,
-        provider: ratesData.provider,
-        displayMode: currentSettings?.displayMode || 'replace',
-        roundWhole: currentSettings?.roundWhole || false,
-        showInPageBar: currentSettings?.showInPageBar !== false,
-        siteOverride: siteRule?.assumedCurrency || null
-      }
+      payload: convertPayload
     });
+
+    if (!response) {
+      await injectContentScript(currentTab.id);
+      await new Promise(r => setTimeout(r, 100));
+      response = await sendTabMessageWithRetry(currentTab.id, {
+        type: MSG.CONVERT_PAGE,
+        payload: convertPayload
+      });
+    }
 
     liveStatusEl.classList.remove('converting');
     if (response && response.success) {
-      isPageConverted = true;
-      btnConvertToggle.textContent = 'Show original';
-      btnConvertToggle.classList.add('active-revert');
-      liveStatusEl.classList.add('converted');
-      liveStatusEl.textContent = `${response.count} prices converted · Rates: ${ratesData.provider || 'ECB'}`;
-      if (response.count === 0) {
-        liveStatusEl.textContent = 'No convertible prices found on this page';
+      const count = response.convertedCount !== undefined ? response.convertedCount : response.count;
+      if (count === 0 || response.alreadyTarget) {
+        isPageConverted = false;
+        btnConvertToggle.textContent = 'Convert this page';
+        btnConvertToggle.classList.remove('active-revert');
+        liveStatusEl.classList.remove('converted');
+        liveStatusEl.textContent = `Page is already in ${targetCur}`;
+      } else {
+        isPageConverted = true;
+        btnConvertToggle.textContent = 'Show original';
+        btnConvertToggle.classList.add('active-revert');
+        liveStatusEl.classList.add('converted');
+        liveStatusEl.textContent = `${count} prices converted · Rates: ${ratesData?.provider || 'ECB'}`;
       }
     } else {
       liveStatusEl.classList.remove('converted');
-      liveStatusEl.textContent = 'Conversion failed';
+      liveStatusEl.textContent = response?.error ? `Conversion error: ${response.error}` : 'Conversion failed';
     }
   } catch (err) {
     liveStatusEl.classList.remove('converting', 'converted');
@@ -510,7 +573,13 @@ async function triggerRevert() {
   btnConvertToggle.disabled = true;
 
   try {
-    const response = await sendTabMessage(currentTab.id, { type: MSG.REVERT_PAGE });
+    let response = await sendTabMessage(currentTab.id, { type: MSG.REVERT_PAGE });
+    if (!response) {
+      await injectContentScript(currentTab.id);
+      await new Promise(r => setTimeout(r, 100));
+      response = await sendTabMessage(currentTab.id, { type: MSG.REVERT_PAGE });
+    }
+
     liveStatusEl.classList.remove('converting', 'converted');
     if (response && response.success) {
       isPageConverted = false;
@@ -528,4 +597,6 @@ async function triggerRevert() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', initPopup);
+if (doc) {
+  doc.addEventListener('DOMContentLoaded', initPopup);
+}

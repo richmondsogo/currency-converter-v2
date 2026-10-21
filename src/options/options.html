@@ -85,16 +85,30 @@
 
         <div class="preview-stage">
           <div class="preview-item">
-            <span class="preview-label">Original Price</span>
-            <div class="preview-original-box">
-              <span class="sample-orig-symbol">$</span>
-              <span class="sample-orig-val">1,299.99</span>
-              <span class="sample-orig-code">USD</span>
+            <span class="preview-label">Sample Input Price</span>
+            <div class="preview-controls-row">
+              <input type="number" id="preview-amount" class="preview-input-amount" value="1299.99" step="0.01" min="0" aria-label="Sample price amount" />
+              <div class="select-wrapper preview-select-wrapper">
+                <select id="preview-source-currency" class="preview-select-cur" aria-label="Sample source currency">
+                  <option value="USD" selected>USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                  <option value="NGN">NGN (₦)</option>
+                  <option value="CAD">CAD (C$)</option>
+                  <option value="AUD">AUD (A$)</option>
+                  <option value="JPY">JPY (¥)</option>
+                  <option value="INR">INR (₹)</option>
+                  <option value="BRL">BRL (R$)</option>
+                  <option value="MXN">MXN (Mex$)</option>
+                  <option value="CNY">CNY (¥)</option>
+                  <option value="CHF">CHF (CHF)</option>
+                </select>
+              </div>
             </div>
           </div>
 
           <div class="preview-arrow" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
           </div>
 
           <div class="preview-item">
@@ -177,29 +191,29 @@
         </div>
 
         <div class="preference-list">
-          <label class="preference-row" for="check-round-whole">
-            <div class="preference-info">
-              <span class="preference-title">Round to whole numbers</span>
-              <span class="preference-sub">Omit minor decimal places on converted amounts (e.g. $25 instead of $25.43).</span>
+          <div class="setting-row">
+            <div class="setting-copy">
+              <label class="setting-title" for="check-round-whole">Round to whole numbers</label>
+              <p class="setting-description">Omit minor decimal places on converted amounts (e.g. $25 instead of $25.43).</p>
             </div>
-            <input type="checkbox" id="check-round-whole" class="form-checkbox" />
-          </label>
+            <input type="checkbox" id="check-round-whole" class="shadcn-switch" role="switch" />
+          </div>
 
-          <label class="preference-row" for="check-show-inpage-bar">
-            <div class="preference-info">
-              <span class="preference-title">Show in-page floating toolbar</span>
-              <span class="preference-sub">Display floating status pill when prices are converted, allowing instant toggling and currency switching.</span>
+          <div class="setting-row">
+            <div class="setting-copy">
+              <label class="setting-title" for="check-show-inpage-bar">Show in-page floating toolbar</label>
+              <p class="setting-description">Display Apple Dynamic Island floating status capsule when prices are converted, allowing instant toggling and currency switching.</p>
             </div>
-            <input type="checkbox" id="check-show-inpage-bar" class="form-checkbox" />
-          </label>
+            <input type="checkbox" id="check-show-inpage-bar" class="shadcn-switch" role="switch" />
+          </div>
 
-          <label class="preference-row" for="check-show-crypto">
-            <div class="preference-info">
-              <span class="preference-title">Show cryptocurrencies in picker</span>
-              <span class="preference-sub">Include popular crypto assets (BTC, ETH, SOL, DOGE) in currency dropdowns.</span>
+          <div class="setting-row">
+            <div class="setting-copy">
+              <label class="setting-title" for="check-show-crypto">Show cryptocurrencies in picker</label>
+              <p class="setting-description">Include popular crypto assets (BTC, ETH, SOL, DOGE) in currency dropdowns.</p>
             </div>
-            <input type="checkbox" id="check-show-crypto" class="form-checkbox" />
-          </label>
+            <input type="checkbox" id="check-show-crypto" class="shadcn-switch" role="switch" />
+          </div>
         </div>
       </section>
 
@@ -249,13 +263,13 @@
         </div>
 
         <div class="preference-list" style="margin-bottom: 24px;">
-          <label class="preference-row" for="check-autoconvert-all">
-            <div class="preference-info">
-              <span class="preference-title">Auto-convert on all websites</span>
-              <span class="preference-sub">Automatically scan and convert prices on every site you visit (requests optional host permission).</span>
+          <div class="setting-row">
+            <div class="setting-copy">
+              <label class="setting-title" for="check-autoconvert-all">Auto-convert on all websites</label>
+              <p class="setting-description">Automatically scan and convert prices on every site you visit (requests optional host permission).</p>
             </div>
-            <input type="checkbox" id="check-autoconvert-all" class="form-checkbox" />
-          </label>
+            <input type="checkbox" id="check-autoconvert-all" class="shadcn-switch" role="switch" />
+          </div>
         </div>
 
         <!-- Add New Rule Inline Form -->
@@ -263,13 +277,13 @@
           <h3 class="subsection-title">Add Domain Rule</h3>
           <p class="subsection-desc">Configure automatic conversion behavior for a specific website domain.</p>
           <form id="form-add-rule" class="add-rule-form">
-            <div class="rule-form-group domain-input-group">
-              <label for="input-rule-domain" class="sr-only">Domain</label>
+            <div class="rule-field">
+              <label for="input-rule-domain" class="rule-label">Domain</label>
               <input type="text" id="input-rule-domain" class="form-input" placeholder="e.g. amazon.de or asos.com" required />
             </div>
 
-            <div class="rule-form-group">
-              <label for="select-rule-behavior" class="sr-only">Behavior</label>
+            <div class="rule-field">
+              <label for="select-rule-behavior" class="rule-label">Behavior</label>
               <div class="select-wrapper">
                 <select id="select-rule-behavior" class="form-select">
                   <option value="always">Always Convert</option>
@@ -278,8 +292,8 @@
               </div>
             </div>
 
-            <div class="rule-form-group">
-              <label for="select-rule-currency" class="sr-only">Assumed Currency</label>
+            <div class="rule-field">
+              <label for="select-rule-currency" class="rule-label">Assumed Currency</label>
               <div class="select-wrapper">
                 <select id="select-rule-currency" class="form-select">
                   <option value="">Auto-detect currency</option>
@@ -290,7 +304,7 @@
 
             <button type="submit" id="btn-add-rule-submit" class="btn-primary">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              <span>Add Rule</span>
+              <span>+ Add Rule</span>
             </button>
           </form>
         </div>

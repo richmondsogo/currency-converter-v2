@@ -131,13 +131,21 @@ async function performConversion(options = {}) {
     currentScanner.startObserving();
   }
 
-  // Strict Pill Trigger Guard: Only mount/show Dynamic Island if actualConvertedCount > 0
-  if (showInPageBar && isConverted && convertedCount > 0) {
+  // Mount or update Dynamic Island pill
+  const isManual = Boolean(options.manual);
+  const shouldShowPill = showInPageBar && (convertedCount > 0 || isManual);
+
+  const primarySourceCurrency = currentScanner?.primarySourceCurrency ||
+    (currentScanner?.detectedCurrencies && Array.from(currentScanner.detectedCurrencies)[0]) ||
+    null;
+
+  if (shouldShowPill) {
     if (!currentUI) {
       currentUI = new InPageUI({
         doc: document,
         targetCurrency,
-        isConverted: true,
+        sourceCurrency: primarySourceCurrency,
+        isConverted: convertedCount > 0,
         convertedCount,
         rateDate,
         provider: rateProvider,
@@ -146,33 +154,46 @@ async function performConversion(options = {}) {
           performRevert();
         },
         onConvert: (cur) => {
-          performConversion({ targetCurrency: cur });
+          performConversion({ targetCurrency: cur, manual: true });
         },
         onChangeCurrency: (newCur) => {
-          performConversion({ targetCurrency: newCur });
+          performConversion({ targetCurrency: newCur, manual: true });
         }
       });
       currentUI.mount(uiCssText);
     } else {
       currentUI.update({
-        isConverted: true,
+        isConverted: convertedCount > 0,
         targetCurrency,
+        sourceCurrency: primarySourceCurrency,
         count: convertedCount,
         rateDate,
         provider: rateProvider,
         theme: currentSettings?.theme || 'system'
       });
+    }
+
+    if (isManual) {
+      currentUI.show();
+    } else if (convertedCount > 0 && !currentUI.isDismissedForSession) {
       currentUI.show();
     }
   } else {
-    // If a scan finishes with 0 foreign conversions, do NOT show the pill.
-    if (currentUI) {
+    // If a scan finishes with 0 foreign conversions and not manual, hide the pill.
+    if (currentUI && convertedCount === 0 && !isManual) {
       currentUI.hide();
     }
   }
 
   notifyBackgroundOfStatus();
-  return { success: true, count: convertedCount, targetCurrency };
+  return {
+    success: true,
+    count: convertedCount,
+    convertedCount,
+    targetCurrency,
+    alreadyTarget: convertedCount === 0,
+    detectedCurrencies: currentScanner ? Array.from(currentScanner.detectedCurrencies || []) : []
+  };
 }
 
 function performRevert() {

@@ -86,22 +86,28 @@
           <span class="site-domain-label" id="current-domain-label">Current site</span>
         </div>
 
-        <div class="toggle-row">
-          <label class="toggle-label" for="toggle-always-site">Always convert on this site</label>
-          <input type="checkbox" id="toggle-always-site" class="toggle-input" />
+        <div class="setting-row">
+          <div class="setting-copy">
+            <label class="setting-title" for="toggle-always-site">Always convert on this site</label>
+          </div>
+          <input type="checkbox" id="toggle-always-site" class="shadcn-switch" role="switch" />
         </div>
 
-        <div class="toggle-row">
-          <label class="toggle-label" for="toggle-never-site">Never convert on this site</label>
-          <input type="checkbox" id="toggle-never-site" class="toggle-input" />
+        <div class="setting-row">
+          <div class="setting-copy">
+            <label class="setting-title" for="toggle-never-site">Never convert on this site</label>
+          </div>
+          <input type="checkbox" id="toggle-never-site" class="shadcn-switch" role="switch" />
         </div>
 
         <div class="override-row">
           <label for="site-currency-override" class="override-label">Prices on this site are in:</label>
-          <select id="site-currency-override" class="select-override">
-            <option value="">Auto-detect</option>
-            <!-- Options injected dynamically -->
-          </select>
+          <div class="select-wrapper">
+            <select id="site-currency-override" class="select-override">
+              <option value="">Auto-detect</option>
+              <!-- Options injected dynamically -->
+            </select>
+          </div>
         </div>
       </div>
     </main>

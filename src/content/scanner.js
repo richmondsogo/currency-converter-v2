@@ -48,6 +48,8 @@ export class PageScanner {
     this.convertedElements = new Set();
     this.convertedTextNodes = new Set();
     this.conversionMetadata = new WeakMap(); // Node/Element -> { originalAmount, originalCurrency, convertedAmount, rate, date }
+    this.detectedCurrencies = new Set();
+    this.primarySourceCurrency = null;
 
     this._initializePageContext();
   }
@@ -57,11 +59,15 @@ export class PageScanner {
 
     // Fast cached helper for page native currency
     const inferred = inferPageCurrency(this.doc);
-    if (inferred && !this.context.pageContextISO) {
-      this.context.pageContextISO = inferred;
-    }
-    if (inferred && !this.context.structuredHint) {
-      this.context.structuredHint = inferred;
+    if (inferred) {
+      this.detectedCurrencies.add(inferred);
+      if (!this.primarySourceCurrency) this.primarySourceCurrency = inferred;
+      if (!this.context.pageContextISO) {
+        this.context.pageContextISO = inferred;
+      }
+      if (!this.context.structuredHint) {
+        this.context.structuredHint = inferred;
+      }
     }
 
     // 1. Hostname for TLD
@@ -272,6 +278,9 @@ export class PageScanner {
       return false;
     }
 
+    this.detectedCurrencies.add(sourceISO);
+    if (!this.primarySourceCurrency) this.primarySourceCurrency = sourceISO;
+
     let convertedAmount;
     let rateUsed;
     try {
@@ -357,6 +366,10 @@ export class PageScanner {
 
       for (const p of validPrices) {
         const sourceISO = p.currency ? p.currency.toUpperCase() : null;
+        if (sourceISO) {
+          this.detectedCurrencies.add(sourceISO);
+          if (!this.primarySourceCurrency) this.primarySourceCurrency = sourceISO;
+        }
         let convertedAmount;
         let rateUsed;
         try {
@@ -410,6 +423,10 @@ export class PageScanner {
     for (let i = validPrices.length - 1; i >= 0; i--) {
       const p = validPrices[i];
       const sourceISO = p.currency ? p.currency.toUpperCase() : null;
+      if (sourceISO) {
+        this.detectedCurrencies.add(sourceISO);
+        if (!this.primarySourceCurrency) this.primarySourceCurrency = sourceISO;
+      }
       let convertedAmount;
       let rateUsed;
       try {

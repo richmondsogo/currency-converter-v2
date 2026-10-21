@@ -41,16 +41,15 @@ test('build: manifest structure and permissions for Chrome', () => {
   assert.equal(manifest.name, 'Currency Convertr');
   assert.equal(manifest.background.service_worker, 'background.js');
 
-  const expectedPermissions = ['contextMenus', 'notifications', 'storage', 'activeTab', 'scripting'];
+  const expectedPermissions = ['contextMenus', 'notifications', 'storage', 'activeTab', 'scripting', 'tabs'];
   assert.deepEqual(manifest.permissions.sort(), expectedPermissions.sort());
 
   const expectedHostPermissions = [
-    'https://api.frankfurter.dev/*',
-    'https://cdn.jsdelivr.net/*',
-    'https://latest.currency-api.pages.dev/*'
+    '<all_urls>',
+    'http://*/*',
+    'https://*/*'
   ];
   assert.deepEqual(manifest.host_permissions.sort(), expectedHostPermissions.sort());
-  assert.deepEqual(manifest.optional_host_permissions, ['<all_urls>']);
 
   // Check referenced files exist in dist/chrome
   assert.ok(fs.existsSync(path.join(distChrome, manifest.background.service_worker)));
@@ -75,16 +74,15 @@ test('build: manifest structure and permissions for Firefox', () => {
   assert.ok(manifest.browser_specific_settings && manifest.browser_specific_settings.gecko);
   assert.equal(manifest.browser_specific_settings.gecko.id, 'currency-converter-fx@richmond.addons');
 
-  const expectedPermissions = ['contextMenus', 'notifications', 'storage', 'activeTab', 'scripting'];
+  const expectedPermissions = ['contextMenus', 'notifications', 'storage', 'activeTab', 'scripting', 'tabs'];
   assert.deepEqual(manifest.permissions.sort(), expectedPermissions.sort());
 
   const expectedHostPermissions = [
-    'https://api.frankfurter.dev/*',
-    'https://cdn.jsdelivr.net/*',
-    'https://latest.currency-api.pages.dev/*'
+    '<all_urls>',
+    'http://*/*',
+    'https://*/*'
   ];
   assert.deepEqual(manifest.host_permissions.sort(), expectedHostPermissions.sort());
-  assert.deepEqual(manifest.optional_host_permissions, ['<all_urls>']);
 
   // Check referenced files exist in dist/firefox
   assert.ok(fs.existsSync(path.join(distFirefox, manifest.background.scripts[0])));

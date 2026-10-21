@@ -190,3 +190,33 @@ test('parser: inferPageCurrency detects meta tags, ld+json, and caches on doc', 
   const dom4 = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>');
   assert.equal(inferPageCurrency(dom4.window.document), null);
 });
+
+test('parser: Jumia Nigeria price extraction and TLD inference', () => {
+  const dom = new JSDOM('<!DOCTYPE html><html lang="en-NG"><head></head><body></body></html>', {
+    url: 'https://www.jumia.com.ng/phones-tablets/'
+  });
+  const doc = dom.window.document;
+  assert.equal(inferPageCurrency(doc), 'NGN');
+
+  const p1 = extractPrices('₦ 14,500');
+  assert.equal(p1.length, 1);
+  assert.equal(p1[0].currency, 'NGN');
+  assert.equal(p1[0].amount, 14500);
+
+  const p2 = extractPrices('₦120,000');
+  assert.equal(p2.length, 1);
+  assert.equal(p2[0].currency, 'NGN');
+  assert.equal(p2[0].amount, 120000);
+
+  const p3 = extractPrices('₦ 1,250,000');
+  assert.equal(p3.length, 1);
+  assert.equal(p3[0].currency, 'NGN');
+  assert.equal(p3[0].amount, 1250000);
+
+  const p4 = extractPrices('₦ 5,000 - ₦ 8,000');
+  assert.equal(p4.length, 2);
+  assert.equal(p4[0].currency, 'NGN');
+  assert.equal(p4[0].amount, 5000);
+  assert.equal(p4[1].currency, 'NGN');
+  assert.equal(p4[1].amount, 8000);
+});
