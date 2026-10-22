@@ -4,9 +4,10 @@
 - **Target Branch**: `main`
 - **Status**: COMPLETE
 - **Previous Step (Step 05b) Merge Commit SHA on Main**: `83e7632` (`Merge pull request #11 from richmondsogo/step/05b-verification`)
-- **PR URL**: (Recorded upon PR creation)
+- **PR URL**: https://github.com/richmondsogo/currency-convertr/pull/12
 - **First Commit SHA (Part A)**: `b01a517`
 - **Last Content Commit SHA (Part D)**: `8893ea8`
+- **Pre-Merge Branch Commit SHA**: `bef8677`
 
 ---
 
