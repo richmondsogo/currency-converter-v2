@@ -76,11 +76,18 @@ export async function getActiveTab() {
 
   return new Promise((resolve) => {
     b.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (b.runtime.lastError || !tabs || tabs.length === 0) {
-        resolve(null);
-      } else {
-        resolve(tabs[0]);
+      const activeTab = tabs && tabs[0];
+      if (activeTab && activeTab.url && !activeTab.url.startsWith('chrome-extension://') && !activeTab.url.startsWith('moz-extension://')) {
+        resolve(activeTab);
+        return;
       }
+
+      // Fallback for test/dev environments where popup is loaded in a tab
+      b.tabs.query({}, (allTabs) => {
+        const webTabs = allTabs?.filter(t => t.url && (t.url.startsWith('http://') || t.url.startsWith('https://')));
+        const webTab = webTabs && webTabs.length > 0 ? webTabs[webTabs.length - 1] : null;
+        resolve(webTab || activeTab || null);
+      });
     });
   });
 }

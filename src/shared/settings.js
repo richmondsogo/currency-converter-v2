@@ -5,6 +5,7 @@ export const CURRENT_SCHEMA_VERSION = 3;
 export const DEFAULT_SETTINGS = {
   schemaVersion: CURRENT_SCHEMA_VERSION,
   targetCurrency: 'USD',
+  // @deprecated since Step 06 - Automatic and menu conversions always use targetCurrency. Retained in schema for backward compatibility.
   lastUsedTarget: 'USD',
   pinnedCurrencies: ['NGN', 'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'INR'],
   displayMode: 'replace', // 'replace' | 'append' | 'replace_highlight'

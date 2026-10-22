@@ -57,7 +57,7 @@ Highlight any specific price string, right-click, and convert it instantly via a
   - Secondary: Fawaz Ahmed Currency API via jsDelivr CDN.
   - Tertiary: Fawaz Ahmed Currency API via Cloudflare Pages.
   - Transparent cross-rates calculated through EUR with a 6-hour cache, stale-while-revalidate, in-flight deduplication, and offline fallback.
-- **Zero Runtime Dependencies**: Packaged with `esbuild` for clean, isolated bundles containing zero remote code and passing strict store linter checks.
+- **Zero Runtime Dependencies in Core Engine**: In-page scanner, detector, background service worker, and Shadow DOM pill are built entirely in vanilla JavaScript with zero framework overhead. Extension pages (options, popup) use locally bundled React and shadcn/ui components with 100% local bundling (zero remote code, zero CDN calls).
 
 ---
 

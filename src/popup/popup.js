@@ -114,7 +114,7 @@ async function initPopup() {
       if (settings) {
         currentSettings = settings;
         applyTheme(settings.theme);
-        selectedTargetCurrency = settings.lastUsedTarget || settings.targetCurrency || 'USD';
+        selectedTargetCurrency = settings.targetCurrency || 'USD';
         updateSelectedTargetUI(selectedTargetCurrency);
       }
     } catch (err) {
@@ -410,12 +410,6 @@ function createOptionItem(c) {
     updateSelectedTargetUI(c.code);
     currencyDropdown.style.display = 'none';
     pickerBtn.setAttribute('aria-expanded', 'false');
-
-    // Update settings with last used
-    await sendMessage({
-      type: MSG.UPDATE_SETTINGS,
-      payload: { lastUsedTarget: c.code }
-    });
 
     // If page is currently converted, immediately re-convert to new target
     if (isPageConverted && currentTab && currentTab.id) {

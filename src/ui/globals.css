@@ -1,0 +1,166 @@
+@import "@fontsource/familjen-grotesk/400.css";
+@import "@fontsource/familjen-grotesk/500.css";
+@import "@fontsource/familjen-grotesk/600.css";
+@import "@fontsource/familjen-grotesk/700.css";
+@import "@fontsource/fragment-mono/400.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Paper & Pine (Light) */
+    --background: #F7F5F0;
+    --foreground: #191815;
+
+    --card: #EFECE5;
+    --card-foreground: #191815;
+
+    --popover: #EFECE5;
+    --popover-foreground: #191815;
+
+    /* Primary buttons use ink (text color as background) */
+    --primary: #191815;
+    --primary-foreground: #F7F5F0;
+
+    --secondary: #EFECE5;
+    --secondary-foreground: #191815;
+
+    --muted: #EFECE5;
+    --muted-foreground: #67635A;
+
+    /* Accent: Pine Green */
+    --accent: #1E6B52;
+    --accent-foreground: #FFFFFF;
+
+    --destructive: #B3261E;
+    --destructive-foreground: #FFFFFF;
+
+    --warning: #A15C07;
+    --warning-foreground: #FFFFFF;
+
+    --border: #E2DED4;
+    --input: #E2DED4;
+    --ring: rgba(30, 107, 82, 0.4);
+
+    --radius: 8px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not(.light) {
+      /* Paper & Pine (Dark - System Default) */
+      --background: #10100E;
+      --foreground: #ECE9E2;
+
+      --card: #181816;
+      --card-foreground: #ECE9E2;
+
+      --popover: #181816;
+      --popover-foreground: #ECE9E2;
+
+      /* Primary buttons use ink (text color as background) */
+      --primary: #ECE9E2;
+      --primary-foreground: #10100E;
+
+      --secondary: #181816;
+      --secondary-foreground: #ECE9E2;
+
+      --muted: #181816;
+      --muted-foreground: #9B968B;
+
+      /* Accent: Mint Pine */
+      --accent: #6FD3A6;
+      --accent-foreground: #10100E;
+
+      --destructive: #E87068;
+      --destructive-foreground: #10100E;
+
+      --warning: #E5A038;
+      --warning-foreground: #10100E;
+
+      --border: #2A2926;
+      --input: #2A2926;
+      --ring: rgba(111, 211, 166, 0.4);
+    }
+  }
+
+  .dark, [data-theme="dark"] {
+    /* Paper & Pine (Dark - Explicit) */
+    --background: #10100E;
+    --foreground: #ECE9E2;
+
+    --card: #181816;
+    --card-foreground: #ECE9E2;
+
+    --popover: #181816;
+    --popover-foreground: #ECE9E2;
+
+    --primary: #ECE9E2;
+    --primary-foreground: #10100E;
+
+    --secondary: #181816;
+    --secondary-foreground: #ECE9E2;
+
+    --muted: #181816;
+    --muted-foreground: #9B968B;
+
+    --accent: #6FD3A6;
+    --accent-foreground: #10100E;
+
+    --destructive: #E87068;
+    --destructive-foreground: #10100E;
+
+    --warning: #E5A038;
+    --warning-foreground: #10100E;
+
+    --border: #2A2926;
+    --input: #2A2926;
+    --ring: rgba(111, 211, 166, 0.4);
+  }
+
+  .light, [data-theme="light"] {
+    /* Paper & Pine (Light - Explicit) */
+    --background: #F7F5F0;
+    --foreground: #191815;
+
+    --card: #EFECE5;
+    --card-foreground: #191815;
+
+    --popover: #EFECE5;
+    --popover-foreground: #191815;
+
+    --primary: #191815;
+    --primary-foreground: #F7F5F0;
+
+    --secondary: #EFECE5;
+    --secondary-foreground: #191815;
+
+    --muted: #EFECE5;
+    --muted-foreground: #67635A;
+
+    --accent: #1E6B52;
+    --accent-foreground: #FFFFFF;
+
+    --destructive: #B3261E;
+    --destructive-foreground: #FFFFFF;
+
+    --warning: #A15C07;
+    --warning-foreground: #FFFFFF;
+
+    --border: #E2DED4;
+    --input: #E2DED4;
+    --ring: rgba(30, 107, 82, 0.4);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
