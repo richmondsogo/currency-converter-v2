@@ -64,6 +64,7 @@ export async function buildGallery() {
     outdir: galleryDir,
     target: 'es2022',
     format: 'iife',
+    jsx: 'automatic',
     sourcemap: false,
     define: {
       ...define,

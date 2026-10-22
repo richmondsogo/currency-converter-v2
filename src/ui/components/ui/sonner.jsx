@@ -1,3 +1,4 @@
+import * as React from "react"
 import {
   CircleCheck,
   Info,
@@ -9,13 +10,19 @@ import { useTheme } from "next-themes"
 import { Toaster as Sonner } from "sonner"
 
 const Toaster = ({
+  theme: themeProp,
   ...props
 }) => {
-  const { theme = "system" } = useTheme()
+  let activeTheme = "system"
+  try {
+    const nextTheme = useTheme()
+    if (nextTheme?.theme) activeTheme = nextTheme.theme
+  } catch {}
+  if (themeProp) activeTheme = themeProp
 
   return (
     <Sonner
-      theme={theme}
+      theme={activeTheme}
       className="toaster group"
       icons={{
         success: <CircleCheck className="h-4 w-4" />,
