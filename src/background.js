@@ -45,7 +45,7 @@ async function buildMenus() {
     try {
       const settings = await settingsManager.getSettings();
       const pinned = settings.pinnedCurrencies || DEFAULT_SETTINGS.pinnedCurrencies;
-      const lastTarget = settings.lastUsedTarget || settings.targetCurrency || 'USD';
+      const defaultTarget = settings.targetCurrency || 'USD';
 
       // 1. Selection Parent Menu (v1 compatibility)
       api.contextMenus.create({
@@ -71,7 +71,7 @@ async function buildMenus() {
       // 2. Page-level Actions
       api.contextMenus.create({
         id: 'cc-page-convert',
-        title: `Convert prices on this page to ${lastTarget}`,
+        title: `Convert prices on this page to ${defaultTarget}`,
         contexts: ['page']
       }, () => {
         if (api.runtime.lastError) {}
@@ -98,7 +98,7 @@ async function convertPageOnTab(tabId, targetCurrency = null) {
   if (!injected) return;
 
   const settings = await settingsManager.getSettings();
-  const target = targetCurrency || settings.targetCurrency || settings.lastUsedTarget || 'USD';
+  const target = targetCurrency || settings.targetCurrency || 'USD';
   let ratesData;
   try {
     ratesData = await ratesEngine.getRates();
@@ -110,10 +110,6 @@ async function convertPageOnTab(tabId, targetCurrency = null) {
       provider: 'Offline Fallback'
     };
   }
-
-  // Remember last used target
-  await settingsManager.updateSettings({ lastUsedTarget: target });
-  buildMenus(); // update "Convert prices on this page to <target>" title
 
   const response = await sendTabMessage(tabId, {
     type: MSG.CONVERT_PAGE,
@@ -297,7 +293,7 @@ if (api && api.tabs && api.tabs.onUpdated) {
           const shouldAutoConvert = shouldAutoConvertPage(settings, url.hostname);
 
           if (shouldAutoConvert) {
-            const target = settings.lastUsedTarget || settings.targetCurrency || 'USD';
+            const target = settings.targetCurrency || 'USD';
             await convertPageOnTab(tabId, target);
           }
         } catch (err) {
