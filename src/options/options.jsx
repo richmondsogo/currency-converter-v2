@@ -634,7 +634,13 @@ export function OptionsApp() {
                     </p>
                   </div>
 
-                  <Popover open={targetComboboxOpen} onOpenChange={setTargetComboboxOpen}>
+                  <Popover
+                    open={targetComboboxOpen}
+                    onOpenChange={(open) => {
+                      setTargetComboboxOpen(open);
+                      if (!open) setTargetSearch("");
+                    }}
+                  >
                     <PopoverTrigger asChild>
                       <Button
                         id="select-target-currency"
@@ -950,7 +956,13 @@ export function OptionsApp() {
                 <div className="space-y-3">
                   <Label className="text-sm font-medium text-foreground">Add to Pinned</Label>
                   <div className="flex gap-3">
-                    <Popover open={pinnedComboboxOpen} onOpenChange={setPinnedComboboxOpen}>
+                    <Popover
+                      open={pinnedComboboxOpen}
+                      onOpenChange={(open) => {
+                        setPinnedComboboxOpen(open);
+                        if (!open) setPinnedSearch("");
+                      }}
+                    >
                       <PopoverTrigger asChild>
                         <Button
                           id="select-add-pinned"
