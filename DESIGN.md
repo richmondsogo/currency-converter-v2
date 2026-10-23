@@ -70,27 +70,28 @@ The color system avoids cold blue/zinc tones. Every text/background pair is veri
 - **Background (`#F7F5F0`)**: Warm, unbleached paper tone.
 - **Raised / Hover (`#EFECE5`)**: Subtle elevated surface for hover states, select menus, and active indicators.
 - **Hairline Divider (`#E2DED4`)**: 1px structural separation.
-- **Text / Foreground (`#191815`)**: Deep natural ink (**16.3:1** contrast on background, **15.0:1** on raised).
-- **Muted Metadata (`#67635A`)**: Secondary descriptions and helper labels (**5.5:1** contrast on background, **5.1:1** on raised).
-- **Accent Pine (`#1E6B52`)**: Reserved for active on-states, switches, sidebar indicator, links, focus ring at ~40% alpha, and converted currency green (**5.9:1** contrast on background).
-- **Warning Amber (`#A15C07`)**: Warnings, stale rate indicators, rate warnings (**4.8:1** contrast).
-- **Danger Crimson (`#B3261E`)**: Destructive actions, rate fetch errors (**6.0:1** contrast).
+- **Text / Foreground (`#191815`)**: Deep natural ink (**16.30:1** contrast on background, AAA).
+- **Muted Metadata (`#67635A`)**: Secondary descriptions and helper labels (**5.49:1** contrast on background, AA).
+- **Accent Pine (`#1E6B52`)**: Reserved for active on-states (switch checked), links, focus ring at ~40% alpha, and converted currency green (**5.88:1** contrast on background, AA).
+- **Warning Amber (`#A15C07`)**: Warnings, stale rate indicators, rate warnings (**4.76:1** contrast, AA).
+- **Danger Crimson (`#B3261E`)**: Destructive actions, rate fetch errors (**6.00:1** contrast, AA).
 
 ### Dark Theme (Warm Night Canvas)
 - **Background (`#10100E`)**: Warm obsidian tone (not cold blue/grey).
 - **Raised / Hover (`#181816`)**: Subtle warm elevation for menus, popovers, and hover states.
 - **Hairline Divider (`#2A2926`)**: 1px structural boundary.
-- **Text / Foreground (`#ECE9E2`)**: Soft warm off-white ink (**15.7:1** contrast on background, **14.5:1** on raised).
-- **Muted Metadata (`#9B968B`)**: Secondary metadata (**6.5:1** contrast on background, **6.0:1** on raised).
-- **Accent Mint Pine (`#6FD3A6`)**: Luminous mint pine for active on-states, switches, sidebar indicators, and converted green (**10.5:1** contrast).
-- **Warning Amber (`#E5A038`)**: Warm golden amber (**8.5:1** contrast on background, **8.0:1** on raised).
-- **Danger Coral (`#E87068`)**: Warm muted crimson (**6.3:1** contrast on background, **5.9:1** on raised).
+- **Text / Foreground (`#ECE9E2`)**: Soft warm off-white ink (**15.71:1** contrast on background, AAA).
+- **Muted Metadata (`#9B968B`)**: Secondary metadata (**6.47:1** contrast on background, AA).
+- **Accent Mint Pine (`#6FD3A6`)**: Luminous mint pine for active on-states, switches, links, and converted green (**10.47:1** contrast, AAA).
+- **Warning Amber (`#E5A038`)**: Warm golden amber (**8.54:1** contrast on background, AAA).
+- **Danger Coral (`#E87068`)**: Warm muted crimson (**6.30:1** contrast on background, AA).
 
-### Semantic Button Rules
+### Semantic Button & Action Rules
 - **Primary Buttons**: Use **ink** — text color as background (`#191815` with `#F7F5F0` text in light; `#ECE9E2` with `#10100E` text in dark).
 - **Secondary / Ghost Buttons**: Use raised surface on hover (`#EFECE5` in light, `#181816` in dark).
 - **Destructive Buttons**: Use danger color (`#B3261E` in light, `#E87068` in dark).
-- **Accent**: Strictly reserved for on-states (switch checked, active sidebar indicator, links, focus ring at ~40% alpha) and the "converted" green. Never used as a generic card fill or secondary button background.
+- **Accent**: Strictly reserved for on-states (switch checked, links, focus ring at ~40% alpha) and the "converted" green. Never used as a generic card fill or secondary button background.
+- **No Literal Plus in Button Text**: Action buttons must use SVG icons with `aria-hidden="true"` and clean semantic text (e.g. `Add site`), NEVER a literal `+` character in textContent or accessible name, preventing screen-reader stutter bugs (e.g. "+ + Add Rule"). Accessible names must exactly match visible action names.
 
 ---
 
@@ -152,17 +153,20 @@ All typography is bundled locally within the extension package (WOFF2 format via
 ## 6. Page Layout Targets (Step 07 & 08 Specifications)
 
 ### Options Page Layout Target (`src/options/`)
-- **Structure**: Two-column layout with a fixed **~220px sidebar navigation** on the left and a **~640px settings column** on the right.
-- **Sidebar**:
-  - Navigation items with 8px radius, icon + label.
-  - Active indicator uses Paper & Pine accent (`#1E6B52` / `#6FD3A6`).
-  - Theme switcher and version build stamp in sidebar footer.
+- **Structure**: Two-column layout with a fixed **~220px sidebar navigation** on the left and a **~640px settings column** on the right. Below 760px, the sidebar becomes a horizontally scrollable top nav.
+- **Sidebar Active-State Rule**:
+  - Active item uses the raised background (`#EFECE5` light / `#181816` dark), font-weight 600, and icon in ink foreground (`#191815` light / `#ECE9E2` dark).
+  - Strictly **NO left border, NO accent bar, and NO accent-colored text**.
+  - Hover states use the same raised background at lower strength (`bg-secondary/60`).
+  - Active link carries `aria-current="page"`.
 - **Settings Rows**:
   - Left: Setting label (`14px font-medium`) + one-line description (`13px text-muted`).
   - Right: Minimalist control (switch, combobox, input, or toggle-group).
-- **Per-Site Rules List**:
-  - Each rule row displays hostname (`font-mono 13px`), assumed currency badge, and a **three-way segmented control** (`Ask` / `Always` / `Never`).
-  - "Add site" row with inline domain input and behavior selector.
+- **Per-Site Rules List Anatomy**:
+  - Plain list separated by **1px hairlines** (`border-b border-border/60`); zero bordered boxes or cards.
+  - Left: Hostname in Fragment Mono (`font-mono text-xs`). Inherited default behavior displays muted caption `"Uses default (Ask|Always)"`.
+  - Right: Three-way segmented control (`Ask` / `Always` / `Never`), assumed-currency searchable combobox, and ghost Remove button (`Trash2` icon).
+  - "Add site" row: inline domain input + behavior selector + `"Add site"` button (SVG icon, no literal `+` character). Inline validation rejects invalid hostnames and duplicates without modal alerts.
 
 ### Toolbar Popup Layout Target (`src/popup/`)
 - **Width**: `320px` fixed width, `16px` padding, zero outer container cards, zero scrollbars.
