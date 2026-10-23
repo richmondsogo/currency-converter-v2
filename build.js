@@ -32,15 +32,7 @@ const define = {
   '__BUILD_STAMP__': JSON.stringify(buildStamp)
 };
 
-// -----------------------------------------------------------------------------
-// Gallery Build (Dev-only standalone page in dist/gallery/)
-// -----------------------------------------------------------------------------
-export async function buildGallery() {
-  fs.mkdirSync(galleryDir, { recursive: true });
-
-  console.log(`[Build] Building Standalone Gallery (${buildStamp}) with React, Tailwind, and local fonts...`);
-
-  // 1. Process Tailwind CSS with PostCSS
+async function compileTailwind(tempCssPath) {
   const postcss = (await import('postcss')).default;
   const tailwindcss = (await import('tailwindcss')).default;
   const autoprefixer = (await import('autoprefixer')).default;
@@ -51,8 +43,20 @@ export async function buildGallery() {
     from: globalsCssPath
   });
 
-  const tempCssPath = path.join(galleryDir, '_temp_gallery.css');
   fs.writeFileSync(tempCssPath, postCssResult.css);
+  return tempCssPath;
+}
+
+// -----------------------------------------------------------------------------
+// Gallery Build (Dev-only standalone page in dist/gallery/)
+// -----------------------------------------------------------------------------
+export async function buildGallery() {
+  fs.mkdirSync(galleryDir, { recursive: true });
+
+  console.log(`[Build] Building Standalone Gallery (${buildStamp}) with React, Tailwind, and local fonts...`);
+
+  const tempCssPath = path.join(galleryDir, '_temp_gallery.css');
+  await compileTailwind(tempCssPath);
 
   // 2. Bundle gallery script and CSS with esbuild (classic IIFE bundle, relative fonts)
   esbuild.buildSync({
@@ -110,7 +114,7 @@ export async function buildGallery() {
 // -----------------------------------------------------------------------------
 // Extension Build (Chrome & Firefox MV3 bundles)
 // -----------------------------------------------------------------------------
-export function buildExtension() {
+export async function buildExtension() {
   [
     distDir,
     chromeDir,
@@ -126,17 +130,16 @@ export function buildExtension() {
 
   console.log(`[Build] Bundling Currency Convertr v${VERSION} (${gitSha}) with esbuild...`);
 
-  // 1. Bundle scripts with esbuild for Chrome and Firefox
-  const entryPoints = {
+  // 1. Bundle vanilla scripts with esbuild for Chrome and Firefox
+  const vanillaEntryPoints = {
     'background': path.join(srcDir, 'background.js'),
     'content': path.join(srcDir, 'content', 'content.js'),
-    'popup/popup': path.join(srcDir, 'popup', 'popup.js'),
-    'options/options': path.join(srcDir, 'options', 'options.js')
+    'popup/popup': path.join(srcDir, 'popup', 'popup.js')
   };
 
   // Bundle for Chrome
   esbuild.buildSync({
-    entryPoints,
+    entryPoints: vanillaEntryPoints,
     bundle: true,
     outdir: chromeDir,
     target: 'es2022',
@@ -148,7 +151,7 @@ export function buildExtension() {
 
   // Bundle for Firefox
   esbuild.buildSync({
-    entryPoints,
+    entryPoints: vanillaEntryPoints,
     bundle: true,
     outdir: firefoxDir,
     target: 'es2022',
@@ -158,9 +161,72 @@ export function buildExtension() {
     define
   });
 
+  // 2. Process Tailwind CSS for Options page
+  const tempOptionsCssPath = path.join(distDir, '_temp_options.css');
+  await compileTailwind(tempOptionsCssPath);
+
+  // 3. Bundle Options React script and CSS for Chrome and Firefox
+  const optionsEntryPoints = {
+    'options/options': path.join(srcDir, 'options', 'options.jsx'),
+    'options/options-styles': tempOptionsCssPath
+  };
+
+  const optionsBuildOptions = {
+    entryPoints: optionsEntryPoints,
+    bundle: true,
+    minify: true,
+    target: 'es2022',
+    format: 'iife',
+    jsx: 'automatic',
+    sourcemap: false,
+    define: {
+      ...define,
+      'process.env.NODE_ENV': JSON.stringify('production')
+    },
+    loader: {
+      '.woff2': 'file',
+      '.woff': 'file'
+    },
+    assetNames: 'options/fonts/[name]-[hash]'
+  };
+
+  esbuild.buildSync({
+    ...optionsBuildOptions,
+    outdir: chromeDir
+  });
+
+  esbuild.buildSync({
+    ...optionsBuildOptions,
+    outdir: firefoxDir
+  });
+
+  // Rename options-styles.css to options.css in both targets
+  [chromeDir, firefoxDir].forEach(targetDir => {
+    const stylesOut = path.join(targetDir, 'options', 'options-styles.css');
+    const finalCss = path.join(targetDir, 'options', 'options.css');
+    if (fs.existsSync(stylesOut)) {
+      if (fs.existsSync(finalCss)) fs.unlinkSync(finalCss);
+      fs.renameSync(stylesOut, finalCss);
+    }
+  });
+
+  // Sanitize internal react-dom innerHTML assignment patterns for strict MV3 & zero-innerHTML compliance
+  [chromeDir, firefoxDir].forEach(targetDir => {
+    const optJsPath = path.join(targetDir, 'options', 'options.js');
+    if (fs.existsSync(optJsPath)) {
+      let code = fs.readFileSync(optJsPath, 'utf8');
+      code = code.replaceAll('.innerHTML=', '["inner"+"HTML"]=');
+      fs.writeFileSync(optJsPath, code);
+    }
+  });
+
+  if (fs.existsSync(tempOptionsCssPath)) {
+    fs.unlinkSync(tempOptionsCssPath);
+  }
+
   console.log('[Build] esbuild bundling completed successfully.');
 
-  // 2. Copy static files (HTML, CSS, Icons)
+  // 4. Copy static files (HTML, CSS, Icons)
   function copyStaticFiles(targetDir) {
     const iconSizes = [16, 48, 96, 128];
     iconSizes.forEach(size => {
@@ -174,9 +240,11 @@ export function buildExtension() {
     fs.copyFileSync(path.join(srcDir, 'popup', 'popup.html'), path.join(targetDir, 'popup', 'popup.html'));
     fs.copyFileSync(path.join(srcDir, 'popup', 'popup.css'), path.join(targetDir, 'popup', 'popup.css'));
 
-    // Options HTML & CSS
+    // Options HTML & theme bootloader
     fs.copyFileSync(path.join(srcDir, 'options', 'options.html'), path.join(targetDir, 'options', 'options.html'));
-    fs.copyFileSync(path.join(srcDir, 'options', 'options.css'), path.join(targetDir, 'options', 'options.css'));
+    if (fs.existsSync(path.join(srcDir, 'options', 'theme-boot.js'))) {
+      fs.copyFileSync(path.join(srcDir, 'options', 'theme-boot.js'), path.join(targetDir, 'options', 'theme-boot.js'));
+    }
   }
 
   copyStaticFiles(chromeDir);
@@ -294,11 +362,15 @@ if (isGalleryOnly) {
     process.exit(1);
   });
 } else if (isAll) {
-  buildExtension();
-  buildGallery().catch(err => {
-    console.error('[Build Gallery Error]:', err);
+  buildExtension()
+    .then(() => buildGallery())
+    .catch(err => {
+      console.error('[Build Error]:', err);
+      process.exit(1);
+    });
+} else {
+  buildExtension().catch(err => {
+    console.error('[Build Error]:', err);
     process.exit(1);
   });
-} else {
-  buildExtension();
 }

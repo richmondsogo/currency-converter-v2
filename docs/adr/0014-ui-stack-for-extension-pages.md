@@ -42,7 +42,10 @@ At the same time, browser extension environments under Manifest V3 impose strict
 2. **Svelte or Vue**:
    - *Rejected*: While lightweight, the headless accessible primitives ecosystem (Radix UI / shadcn) is significantly more mature and standardized in the React ecosystem.
 3. **Preact**:
-   - *Evaluated*: Offers a smaller footprint, but modern esbuild tree-shaking and minification for dedicated extension pages (options and popup) keeps React bundles under acceptable thresholds (popup ~140KB, options ~180KB compressed), while Radix UI primitives have first-class, verified support with standard React.
+   - *Evaluated*: Offers a smaller footprint, but modern esbuild tree-shaking and minification for dedicated extension pages (options and popup) keeps React bundles under acceptable thresholds:
+     - **Options Page**: `options.js` 418.8 KB uncompressed (~110 KB compressed in release zip), `options.css` 34.5 KB uncompressed [**MEASURED** Step 07].
+     - **Action Popup**: `popup.js` ~140 KB uncompressed (~45 KB compressed) [**ESTIMATED** pending Step 08].
+     Radix UI primitives have first-class, verified support with standard React while in-page scripts remain pure zero-framework vanilla.
 
 ## Consequences
 - **Positive**:

@@ -43,7 +43,8 @@ import {
   Palette,
   Info,
   ExternalLink,
-  Plus
+  Plus,
+  Trash2
 } from "lucide-react"
 import { CURRENCIES_DATA } from "../../shared/currencies-data"
 
@@ -64,27 +65,27 @@ const COLOR_TOKENS = [
   {
     theme: "Light Palette",
     tokens: [
-      { name: "Background", hex: "#F7F5F0", role: "Page canvas", contrast: "1.0:1", pass: true },
-      { name: "Raised / Hover", hex: "#EFECE5", role: "Interactive surfaces", contrast: "1.08:1", pass: true },
-      { name: "Hairline", hex: "#E2DED4", role: "Section borders", contrast: "1.23:1", pass: true },
-      { name: "Text (Foreground)", hex: "#191815", role: "Primary typography", contrast: "16.30:1", pass: true },
-      { name: "Muted Text", hex: "#67635A", role: "Secondary labels", contrast: "5.49:1", pass: true },
-      { name: "Accent (Pine)", hex: "#1E6B52", role: "Active / Focus / Link", contrast: "5.88:1", pass: true },
-      { name: "Warning", hex: "#A15C07", role: "Stale rates / alerts", contrast: "4.76:1", pass: true },
-      { name: "Danger", hex: "#B3261E", role: "Errors / removal", contrast: "6.00:1", pass: true },
+      { name: "Background", hex: "#F7F5F0", role: "Page canvas", surface: true },
+      { name: "Raised / Hover", hex: "#EFECE5", role: "Interactive surfaces", surface: true },
+      { name: "Hairline", hex: "#E2DED4", role: "Section borders", surface: true },
+      { name: "Text (Foreground)", hex: "#191815", role: "Primary typography", ratio: 16.30, contrast: "16.30:1", level: "AAA" },
+      { name: "Muted Text", hex: "#67635A", role: "Secondary labels", ratio: 5.49, contrast: "5.49:1", level: "AA" },
+      { name: "Accent (Pine)", hex: "#1E6B52", role: "Active / Focus / Link", ratio: 5.88, contrast: "5.88:1", level: "AA" },
+      { name: "Warning", hex: "#A15C07", role: "Stale rates / alerts", ratio: 4.76, contrast: "4.76:1", level: "AA" },
+      { name: "Danger", hex: "#B3261E", role: "Errors / removal", ratio: 6.00, contrast: "6.00:1", level: "AA" },
     ]
   },
   {
     theme: "Dark Palette",
     tokens: [
-      { name: "Background", hex: "#10100E", role: "Page canvas", contrast: "1.0:1", pass: true },
-      { name: "Raised / Hover", hex: "#181816", role: "Interactive surfaces", contrast: "1.07:1", pass: true },
-      { name: "Hairline", hex: "#2A2926", role: "Section borders", contrast: "1.28:1", pass: true },
-      { name: "Text (Foreground)", hex: "#ECE9E2", role: "Primary typography", contrast: "15.71:1", pass: true },
-      { name: "Muted Text", hex: "#9B968B", role: "Secondary labels", contrast: "6.47:1", pass: true },
-      { name: "Accent (Mint Pine)", hex: "#6FD3A6", role: "Active / Focus / Link", contrast: "10.47:1", pass: true },
-      { name: "Warning", hex: "#E5A038", role: "Stale rates / alerts", contrast: "8.54:1", pass: true },
-      { name: "Danger", hex: "#E87068", role: "Errors / removal", contrast: "6.30:1", pass: true },
+      { name: "Background", hex: "#10100E", role: "Page canvas", surface: true },
+      { name: "Raised / Hover", hex: "#181816", role: "Interactive surfaces", surface: true },
+      { name: "Hairline", hex: "#2A2926", role: "Section borders", surface: true },
+      { name: "Text (Foreground)", hex: "#ECE9E2", role: "Primary typography", ratio: 15.71, contrast: "15.71:1", level: "AAA" },
+      { name: "Muted Text", hex: "#9B968B", role: "Secondary labels", ratio: 6.47, contrast: "6.47:1", level: "AA" },
+      { name: "Accent (Mint Pine)", hex: "#6FD3A6", role: "Active / Focus / Link", ratio: 10.47, contrast: "10.47:1", level: "AAA" },
+      { name: "Warning", hex: "#E5A038", role: "Stale rates / alerts", ratio: 8.54, contrast: "8.54:1", level: "AAA" },
+      { name: "Danger", hex: "#E87068", role: "Errors / removal", ratio: 6.30, contrast: "6.30:1", level: "AA" },
     ]
   }
 ]
@@ -318,7 +319,7 @@ export function Gallery() {
             <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold tracking-tight">3. Color Palette "Paper & Pine"</h2>
-                <Badge variant="outline" className="font-mono text-xs">WCAG AA & AAA Verified</Badge>
+                <Badge variant="outline" className="font-mono text-xs">Text-on-Background Ratios</Badge>
               </div>
               <p className="text-sm text-muted-foreground">
                 Warm paper background, ink primary, pine green semantic accent. Strict &ge; 4.5:1 text-to-background contrast across both themes.
@@ -349,12 +350,20 @@ export function Gallery() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="font-mono text-xs font-semibold text-foreground block">
-                            {token.contrast}
-                          </span>
-                          <span className="text-[11px] text-accent font-medium">
-                            {token.pass ? "Passes WCAG" : "Check Contrast"}
-                          </span>
+                          {token.surface ? (
+                            <span className="font-mono text-xs text-muted-foreground block">
+                              Surface
+                            </span>
+                          ) : (
+                            <>
+                              <span className="font-mono text-xs font-semibold text-foreground block">
+                                {token.contrast}
+                              </span>
+                              <span className="text-[11px] text-accent font-medium">
+                                {token.level} (Passes WCAG)
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -385,8 +394,8 @@ export function Gallery() {
                   Preferences
                 </div>
                 <nav className="space-y-1">
-                  <button className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm font-medium bg-secondary text-foreground border-l-2 border-accent">
-                    <Settings aria-hidden="true" className="h-4 w-4 text-accent" />
+                  <button className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm font-semibold bg-secondary text-foreground">
+                    <Settings aria-hidden="true" className="h-4 w-4 text-foreground" />
                     <span>General</span>
                   </button>
                   <button className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm font-normal text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors">
@@ -537,29 +546,44 @@ export function Gallery() {
                     <p className="text-xs text-muted-foreground">Set automatic conversion behavior per domain.</p>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="divide-y divide-border/60">
                     {sites.map((s, idx) => (
                       <div
                         key={s.domain}
-                        className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-secondary/20"
+                        className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                       >
                         <span className="font-mono text-xs text-foreground font-medium">{s.domain}</span>
-                        <ToggleGroup
-                          type="single"
-                          value={s.mode}
-                          onValueChange={(val) => {
-                            if (!val) return
-                            const next = [...sites]
-                            next[idx].mode = val
-                            setSites(next)
-                            toast.info(`Updated rule for ${s.domain} to ${val.toUpperCase()}`)
-                          }}
-                          className="bg-secondary p-0.5 rounded border border-border"
-                        >
-                          <ToggleGroupItem value="ask" aria-label={`Ask conversion behavior for ${s.domain}`} className="text-[11px] h-6 px-2">Ask</ToggleGroupItem>
-                          <ToggleGroupItem value="always" aria-label={`Always convert ${s.domain}`} className="text-[11px] h-6 px-2">Always</ToggleGroupItem>
-                          <ToggleGroupItem value="never" aria-label={`Never convert ${s.domain}`} className="text-[11px] h-6 px-2">Never</ToggleGroupItem>
-                        </ToggleGroup>
+                        <div className="flex items-center space-x-2">
+                          <ToggleGroup
+                            type="single"
+                            value={s.mode}
+                            onValueChange={(val) => {
+                              if (!val) return
+                              const next = [...sites]
+                              next[idx].mode = val
+                              setSites(next)
+                              toast.info(`Updated rule for ${s.domain} to ${val.toUpperCase()}`)
+                            }}
+                            className="bg-secondary p-0.5 rounded border border-border"
+                          >
+                            <ToggleGroupItem value="ask" aria-label={`Ask conversion behavior for ${s.domain}`} className="text-[11px] h-6 px-2">Ask</ToggleGroupItem>
+                            <ToggleGroupItem value="always" aria-label={`Always convert ${s.domain}`} className="text-[11px] h-6 px-2">Always</ToggleGroupItem>
+                            <ToggleGroupItem value="never" aria-label={`Never convert ${s.domain}`} className="text-[11px] h-6 px-2">Never</ToggleGroupItem>
+                          </ToggleGroup>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Remove rule for ${s.domain}`}
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => {
+                              setSites(sites.filter((_, i) => i !== idx))
+                              toast.info(`Removed rule for ${s.domain}`)
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -575,7 +599,7 @@ export function Gallery() {
                       className="font-mono text-xs h-8 bg-background flex-1"
                     />
                     <Button type="submit" size="sm" className="h-8 text-xs px-3">
-                      <Plus className="h-3.5 w-3.5 mr-1" /> Add Rule
+                      <Plus className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Add site
                     </Button>
                   </form>
                 </div>

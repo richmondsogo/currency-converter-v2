@@ -21,12 +21,18 @@ test('T1 Regression: Show original stays original on late mutations, re-converts
     const page = await context.newPage();
 
     // Configure options: shop.test -> always autoConvert, targetCurrency -> NGN
-    await page.goto(`chrome-extension://${browser.extensionId}/options/options.html`);
+    await page.goto(`chrome-extension://${browser.extensionId}/options/options.html#general`);
     await page.waitForLoadState('domcontentloaded');
-    await page.locator('#default-target-currency').selectOption('NGN');
-    await page.locator('#input-rule-domain').fill('shop.test');
-    await page.locator('#select-rule-behavior').selectOption('always');
-    await page.locator('#btn-add-rule-submit').click();
+
+    await page.locator('#select-target-currency').click();
+    await page.locator('[cmdk-input]').fill('NGN');
+    await page.locator('[cmdk-item]:has-text("NGN")').first().click();
+    await page.waitForTimeout(400);
+
+    await page.goto(`chrome-extension://${browser.extensionId}/options/options.html#sites`);
+    await page.locator('#input-new-site').fill('shop.test');
+    await page.locator('button[aria-label="Mode Always"]').click();
+    await page.locator('button[aria-label="Add site"]').click();
     await page.waitForTimeout(1000);
 
     // ==========================================

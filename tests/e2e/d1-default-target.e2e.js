@@ -44,14 +44,21 @@ test('D1: Automatic and menu conversions ALWAYS use settings.targetCurrency (def
     const page = await context.newPage();
 
     // 1. Configure Options Page: Default Target Currency = NGN, Site Rule for shop.test = Always
-    await page.goto(`chrome-extension://${browser.extensionId}/options/options.html`);
+    await page.goto(`chrome-extension://${browser.extensionId}/options/options.html#general`);
     await page.waitForLoadState('domcontentloaded');
 
-    await page.locator('#default-target-currency').selectOption('NGN');
-    await page.locator('#input-rule-domain').fill('shop.test');
-    await page.locator('#select-rule-behavior').selectOption('always');
-    await page.locator('#btn-add-rule-submit').click();
-    await page.waitForTimeout(1000);
+    await page.locator('#select-target-currency').click();
+    await page.locator('[cmdk-input]').fill('NGN');
+    await page.locator('[data-currency-code="NGN"]').first().click();
+    await page.waitForTimeout(600);
+
+    // Switch to Sites section via sidebar
+    await page.locator('a[href="#sites"]').click();
+    await page.waitForSelector('#input-new-site');
+    await page.locator('#input-new-site').fill('shop.test');
+    await page.locator('button[aria-label="Add site"]').click();
+    await page.waitForSelector('span.font-mono:has-text("shop.test")', { timeout: 5000 });
+    await page.waitForTimeout(800);
 
     // 2. Open an Always site: verify it automatically converts to NGN
     const alwaysPage = await context.newPage();

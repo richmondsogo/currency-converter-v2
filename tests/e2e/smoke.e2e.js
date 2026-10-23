@@ -17,13 +17,13 @@ test('E2E Smoke: Extension loads in real browser, service worker is alive, and o
     await optionsPage.waitForLoadState('domcontentloaded');
 
     const optionsTitle = await optionsPage.title();
-    assert.equal(optionsTitle, 'Currency Convertr — Options & Settings', 'Options page title must match');
+    assert.equal(optionsTitle, 'General — Currency Convertr', 'Options page title must match');
 
-    const hasNav = await optionsPage.locator('.options-nav').isVisible();
-    assert.ok(hasNav, 'Options page navigation pills must be visible');
+    const hasNav = await optionsPage.locator('nav[aria-label="Settings sections"]').isVisible();
+    assert.ok(hasNav, 'Options page navigation must be visible');
 
-    const hasGeneralSection = await optionsPage.locator('#section-general').isVisible();
-    assert.ok(hasGeneralSection, 'General settings section must be visible');
+    const headingText = (await optionsPage.locator('h1').textContent()).trim();
+    assert.equal(headingText, 'General', 'General settings section must be visible');
 
     // 3. Verify popup page
     const popupPage = await browser.context.newPage();

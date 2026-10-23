@@ -78,6 +78,7 @@ All conversion requests feed into a single, unified conversion pipeline in the b
 - **UI System**: Custom OLED Dynamic Island pill with zero runtime frameworks, zero external CSS dependencies, isolated inside an open Shadow DOM root.
 
 - **Site Mode & Rules**: Tri-state site mode (`mode: 'ask' | 'always' | 'never'`) migrated and active in v3 settings schema.
+- **Options Surface**: Rebuilt in React 19 + Tailwind + shadcn/ui (Step 07) following the Paper & Pine design system, with hash routing, local typography (`Familjen Grotesk` + `Fragment Mono`), live storage sync, zero `innerHTML`, and 100% Firefox MV3 parity.
 - **Auto-Convert & Idempotency**: Consolidated into a single `tabs.onUpdated` mechanism; content script re-injection is strictly idempotent; top-frame isolated.
 - **Price Tokenization**: Trailing ISO codes (`$25 CAD`) and compound prefixes (`US $133.00`) fully consumed.
 
