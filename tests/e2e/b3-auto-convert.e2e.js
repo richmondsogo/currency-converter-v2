@@ -44,21 +44,32 @@ test('B3 Regression: Auto-convert trigger, hostname routing, and late-rendered p
     const page = await context.newPage();
 
     // 1. Configure Options Page: Target currency = NGN, add 'always' rule for shop.test
-    await page.goto(`chrome-extension://${browser.extensionId}/options/options.html`);
+    await page.goto(`chrome-extension://${browser.extensionId}/options/options.html#general`);
     await page.waitForLoadState('domcontentloaded');
 
     // Select target currency NGN
-    await page.locator('#default-target-currency').selectOption('NGN');
+    await page.locator('#select-target-currency').click();
+    await page.locator('[cmdk-input]').fill('NGN');
+    await page.locator('[data-currency-code="NGN"]').first().click();
+    await page.waitForTimeout(600);
 
-    // Add per-site rule for shop.test -> Always
-    await page.locator('#input-rule-domain').fill('shop.test');
-    await page.locator('#select-rule-behavior').selectOption('always');
-    await page.locator('#btn-add-rule-submit').click();
-    await page.waitForTimeout(1000);
+    // Switch to Sites section via sidebar
+    await page.locator('a[href="#sites"]').click();
+    await page.waitForSelector('#input-new-site');
+    await page.locator('#input-new-site').fill('shop.test');
+    await page.locator('button[aria-label="Add site"]').click();
+    await page.waitForSelector('span.font-mono:has-text("shop.test")', { timeout: 5000 });
+    await page.waitForFunction(async () => {
+      const data = await chrome.storage.local.get('currency_converter_settings_v2');
+      const s = data['currency_converter_settings_v2'];
+      return s?.perSite && s.perSite['shop.test']?.mode === 'always';
+    });
+    await page.waitForTimeout(500);
 
     // 2. Test www.shop.test -> expected: auto-converts to NGN, exactly 1 pill
     await page.goto('http://www.shop.test/products');
-    await page.waitForTimeout(3000);
+    await page.waitForSelector('#cc-dynamic-island-host', { timeout: 10000 }).catch(() => {});
+    await page.waitForTimeout(1000);
 
     const wwwResult = await page.evaluate(() => {
       const hosts = document.querySelectorAll('#cc-dynamic-island-host');
@@ -106,18 +117,26 @@ test('B3 Regression: Auto-convert trigger, hostname routing, and late-rendered p
     assert.equal(otherResult.hasNgn, false, 'other.test must not convert');
 
     // 5. Test Never rule beats autoConvertAll: true
-    await page.goto(`chrome-extension://${browser.extensionId}/options/options.html`);
+    await page.goto(`chrome-extension://${browser.extensionId}/options/options.html#general`);
     await page.waitForLoadState('domcontentloaded');
 
-    // Check autoConvertAll
-    await page.locator('#check-autoconvert-all').check();
-    await page.waitForTimeout(500);
+    // Select Always for sites without a rule (autoConvertAll = true)
+    await page.locator('button[aria-label="Default Always"]').click();
+    await page.waitForTimeout(600);
 
-    // Add rule never.test -> never
-    await page.locator('#input-rule-domain').fill('never.test');
-    await page.locator('#select-rule-behavior').selectOption('never');
-    await page.locator('#btn-add-rule-submit').click();
-    await page.waitForTimeout(1000);
+    // Switch to Sites section and add rule never.test -> never
+    await page.locator('a[href="#sites"]').click();
+    await page.waitForSelector('#input-new-site');
+    await page.locator('#input-new-site').fill('never.test');
+    await page.locator('button[aria-label="Mode Never"]').click();
+    await page.locator('button[aria-label="Add site"]').click();
+    await page.waitForSelector('span.font-mono:has-text("never.test")', { timeout: 5000 });
+    await page.waitForFunction(async () => {
+      const data = await chrome.storage.local.get('currency_converter_settings_v2');
+      const s = data['currency_converter_settings_v2'];
+      return s?.autoConvertAll === true && s?.perSite && s.perSite['never.test']?.mode === 'never';
+    });
+    await page.waitForTimeout(500);
 
     // Visit never.test -> must NOT convert even with autoConvertAll true
     await page.goto('http://never.test/items');

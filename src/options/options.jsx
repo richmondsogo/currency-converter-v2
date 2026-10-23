@@ -673,6 +673,7 @@ export function OptionsApp() {
                               {filteredTargetCurrencies.map((c) => (
                                 <CommandItem
                                   key={c.code}
+                                  data-currency-code={c.code}
                                   value={`${c.code} ${c.name} ${c.symbol}`}
                                   onSelect={() => {
                                     updateSettings(
@@ -681,7 +682,14 @@ export function OptionsApp() {
                                     );
                                     setTargetComboboxOpen(false);
                                   }}
-                                  className="text-xs font-mono flex items-center justify-between py-1.5"
+                                  onClick={() => {
+                                    updateSettings(
+                                      { targetCurrency: c.code, lastUsedTarget: c.code },
+                                      `Target currency set to ${c.code}`
+                                    );
+                                    setTargetComboboxOpen(false);
+                                  }}
+                                  className="text-xs font-mono flex items-center justify-between py-1.5 cursor-pointer"
                                 >
                                   <div className="flex items-center min-w-0">
                                     <Check
@@ -743,11 +751,15 @@ export function OptionsApp() {
                               return (
                                 <CommandItem
                                   key={code}
+                                  data-currency-code={code}
                                   value={code}
                                   onSelect={() => {
                                     updateSettings({ ambiguousDollar: code });
                                   }}
-                                  className="text-xs font-mono flex items-center justify-between py-1.5"
+                                  onClick={() => {
+                                    updateSettings({ ambiguousDollar: code });
+                                  }}
+                                  className="text-xs font-mono flex items-center justify-between py-1.5 cursor-pointer"
                                 >
                                   <div className="flex items-center">
                                     <Check
@@ -997,9 +1009,11 @@ export function OptionsApp() {
                                 {availableUnpinnedCurrencies.map((c) => (
                                   <CommandItem
                                     key={c.code}
+                                    data-currency-code={c.code}
                                     value={`${c.code} ${c.name} ${c.symbol}`}
                                     onSelect={() => handleAddPinned(c.code)}
-                                    className="text-xs font-mono flex items-center justify-between py-1.5"
+                                    onClick={() => handleAddPinned(c.code)}
+                                    className="text-xs font-mono flex items-center justify-between py-1.5 cursor-pointer"
                                   >
                                     <div className="flex items-center min-w-0">
                                       <span className="font-semibold">{c.code}</span>
