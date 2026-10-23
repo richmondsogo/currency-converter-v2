@@ -4,7 +4,9 @@
 - **Target Branch**: `main`
 - **Status**: COMPLETE
 - **Previous Step (Step 06) Merge Commit SHA on Main**: `db16e2c` (`Merge pull request #12 from richmondsogo/step/06-ui-foundation`)
-- **PR URL**: TBD
+- **PR URL**: https://github.com/richmondsogo/currency-convertr/pull/13
+- **First Commit SHA (Part A)**: `44898a3`
+- **Last Content Commit SHA (Part E)**: `cefc54b`
 - **Commits**:
   - `44898a3`: `feat(options): Part A - information architecture, shell, hash routing, and theme bootloader`
   - `d9126f0`: `feat(options): Part B - settings sections, site rules list, and data backup`
