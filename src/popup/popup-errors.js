@@ -33,3 +33,24 @@ export function classifyConversionError({ isRestricted, hasHostPermission, rates
   if (!hasResponse) return ERROR_CLASSES.CONTENT_SCRIPT_UNREACHABLE;
   return ERROR_CLASSES.UNKNOWN;
 }
+
+/**
+ * Checks whether a given URL is a browser internal or restricted store page.
+ */
+export function isRestrictedPage(url) {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return (
+      trimmed.includes('chromewebstore.google.com') ||
+      trimmed.includes('addons.mozilla.org')
+    );
+  }
+  return (
+    /^(chrome|edge|brave|about|moz-extension|chrome-extension|view-source|chrome-error):/i.test(trimmed) ||
+    trimmed.includes('chromewebstore.google.com') ||
+    trimmed.includes('addons.mozilla.org')
+  );
+}
+
+export const isRestrictedUrl = isRestrictedPage;

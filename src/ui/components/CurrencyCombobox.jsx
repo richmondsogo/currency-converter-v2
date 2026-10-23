@@ -112,7 +112,12 @@ export function CurrencyCombobox({
             className
           )}
         >
-          <span className="truncate">{displayLabel}</span>
+          <span
+            id={triggerId === "picker-to-btn" ? "selected-target-text" : undefined}
+            className="truncate"
+          >
+            {displayLabel}
+          </span>
           <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" aria-hidden="true" />
         </Button>
       </PopoverTrigger>
@@ -126,7 +131,7 @@ export function CurrencyCombobox({
             placeholder={placeholder}
             value={search}
             onValueChange={setSearch}
-            className="h-9 text-xs"
+            className="search-input h-9 text-xs"
             aria-label={placeholder}
           />
           <CommandList>
