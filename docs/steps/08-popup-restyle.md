@@ -2,7 +2,11 @@
 
 **Branch**: `step/08-popup-restyle`  
 **Base Commit**: `e1aaafa` (Step 07 Merge on `main`)  
-**Status**: Completed  
+**Pull Request**: `https://github.com/richmondsogo/currency-convertr/pull/14`  
+**First Commit SHA**: `329ffe6`  
+**Last Commit SHA**: `94f9b99`  
+**Merge Commit SHA**: `93c21440ebfb63cf47cc56473e9e1fa474f7f672` (`93c2144`)  
+**Status**: Landed on `main`  
 **Role**: Builder (`BUILD_PROTOCOL.md`)  
 
 ---
