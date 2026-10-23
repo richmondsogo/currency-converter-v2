@@ -1062,6 +1062,8 @@ export function OptionsApp() {
                       aria-label="Domain name"
                       placeholder="Domain (e.g. amazon.de or asos.com)"
                       value={newSiteDomain}
+                      aria-invalid={Boolean(newSiteError)}
+                      aria-describedby={newSiteError ? "new-site-error-msg" : undefined}
                       onChange={(e) => {
                         setNewSiteDomain(e.target.value);
                         if (newSiteError) setNewSiteError("");
@@ -1098,8 +1100,12 @@ export function OptionsApp() {
                     </Button>
                   </div>
                   {newSiteError && (
-                    <p className="text-xs text-destructive font-medium flex items-center gap-1 pt-1">
-                      <AlertCircle className="h-3.5 w-3.5" />
+                    <p
+                      id="new-site-error-msg"
+                      role="alert"
+                      className="text-xs text-destructive font-medium flex items-center gap-1 pt-1"
+                    >
+                      <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
                       {newSiteError}
                     </p>
                   )}
@@ -1333,7 +1339,7 @@ export function OptionsApp() {
                     Choose how converted prices are rendered directly on host web pages.
                   </p>
 
-                  <div className="space-y-2 pt-1">
+                  <div role="radiogroup" aria-label="Display mode" className="space-y-2 pt-1">
                     {[
                       {
                         value: "replace",
@@ -1351,10 +1357,13 @@ export function OptionsApp() {
                         desc: "Replaces price and applies a subtle highlight background to converted figures.",
                       },
                     ].map((opt) => (
-                      <div
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={settings.displayMode === opt.value}
                         key={opt.value}
                         onClick={() => updateSettings({ displayMode: opt.value })}
-                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                        className={`w-full text-left p-3 rounded-lg border cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                           settings.displayMode === opt.value
                             ? "border-accent bg-secondary/50"
                             : "border-border hover:bg-secondary/20"
@@ -1363,11 +1372,11 @@ export function OptionsApp() {
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-foreground">{opt.title}</span>
                           {settings.displayMode === opt.value && (
-                            <Check className="h-4 w-4 text-accent" />
+                            <Check className="h-4 w-4 text-accent" aria-hidden="true" />
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
