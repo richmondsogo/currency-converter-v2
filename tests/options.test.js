@@ -9,49 +9,19 @@ import {
   setSiteMode
 } from '../src/shared/settings.js';
 
-// Pure UI mapping helpers matching options page logic
-export function getEffectiveSiteCaption(rule, autoConvertAll) {
-  if (!rule || !rule.mode) {
-    return `Uses default (${autoConvertAll ? 'Always' : 'Ask'})`;
-  }
-  return '';
-}
+import {
+  getEffectiveSiteCaption,
+  validateDomainInput,
+  canAddPinned,
+  validateImportContent
+} from '../src/ui/lib/site-rules.js';
 
-export function validateDomainInput(rawDomain, existingPerSite = {}) {
-  const trimmed = typeof rawDomain === 'string' ? rawDomain.trim() : '';
-  if (!trimmed) {
-    return { ok: false, error: 'Please enter a domain name (e.g. amazon.de)' };
-  }
-  const clean = normalizeHost(trimmed);
-  if (!clean || !clean.includes('.')) {
-    return { ok: false, error: 'Please enter a valid domain containing an extension (e.g. amazon.de)' };
-  }
-  if (existingPerSite && existingPerSite[clean]) {
-    return { ok: false, error: `A rule for "${clean}" already exists` };
-  }
-  return { ok: true, clean };
-}
-
-export function canAddPinned(pinnedCurrencies) {
-  if (!Array.isArray(pinnedCurrencies)) return true;
-  return pinnedCurrencies.length < 8;
-}
-
-export function validateImportContent(rawText) {
-  if (!rawText || typeof rawText !== 'string') {
-    throw new Error('File content must be a non-empty string');
-  }
-  let parsed;
-  try {
-    parsed = JSON.parse(rawText);
-  } catch (err) {
-    throw new Error(`Invalid JSON: ${err.message}`);
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('File content must be a JSON object');
-  }
-  return migrateSettings(parsed);
-}
+export {
+  getEffectiveSiteCaption,
+  validateDomainInput,
+  canAddPinned,
+  validateImportContent
+};
 
 test('options unit: hostname normalization on add', () => {
   assert.equal(normalizeHost('WWW.Shop.test'), 'shop.test');

@@ -169,11 +169,14 @@ All typography is bundled locally within the extension package (WOFF2 format via
   - "Add site" row: inline domain input + behavior selector + `"Add site"` button (SVG icon, no literal `+` character). Inline validation rejects invalid hostnames and duplicates without modal alerts.
 
 ### Toolbar Popup Layout Target (`src/popup/`)
-- **Width**: `320px` fixed width, `16px` padding, zero outer container cards, zero scrollbars.
-- **Header**: Extension title (`14px font-medium`) with direct link to Options.
-- **Site Rule Row**: Three-way segmented control (`Ask` / `Always` / `Never`) for the active domain.
-- **Typographic Converter Row**: Numeric amount input, tabular numbers, searchable currency combobox.
-- **Actions**: Instant conversion status, 1-click "Convert page" / "Show original", live rates timestamp.
+- **Dimensions**: `360px` fixed width, `560px` max height vertical scroll container, `14px` internal padding, zero outer container cards.
+- **Header**: Extension brand badge (`fx` in ink), title (`14px font-semibold tracking-tight`), direct icon link to Options.
+- **Converter Block**: Auto-detect source currency indicator, arrow icon, accessible searchable `CurrencyCombobox` for page-only target override, pinned currency quick-chips, and muted `"Default"` badge when matching user settings.
+- **Primary Action**: 1-click toggle button (`#btn-convert-toggle`) switching between `"Convert this page"` (ink primary) and `"Show original"` (secondary outlined).
+- **Live Status Bar**: Status dot (`bg-accent` green when converted, `bg-muted` neutral when ready, amber on error), live conversion count, exchange rates provider credit, and honest error classification.
+- **Site Rule Block**: Active hostname in Fragment Mono, 3-way segmented control (`Ask` / `Always` / `Never`), inherited default caption (`"Uses default (Ask|Always)"`), Reset button, and optional site-wide assumed currency override combobox.
+- **Unsupported Notice**: Amber warning banner displayed on browser system, web store, and restricted extension pages.
+- **Footer**: Live rates freshness info (`Rates: Provider, Date`), manual retry button, keyboard shortcut hint (`Alt+Shift+C`), and direct Options link.
 
 ---
 

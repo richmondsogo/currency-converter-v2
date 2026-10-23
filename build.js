@@ -133,8 +133,7 @@ export async function buildExtension() {
   // 1. Bundle vanilla scripts with esbuild for Chrome and Firefox
   const vanillaEntryPoints = {
     'background': path.join(srcDir, 'background.js'),
-    'content': path.join(srcDir, 'content', 'content.js'),
-    'popup/popup': path.join(srcDir, 'popup', 'popup.js')
+    'content': path.join(srcDir, 'content', 'content.js')
   };
 
   // Bundle for Chrome
@@ -161,14 +160,14 @@ export async function buildExtension() {
     define
   });
 
-  // 2. Process Tailwind CSS for Options page
-  const tempOptionsCssPath = path.join(distDir, '_temp_options.css');
-  await compileTailwind(tempOptionsCssPath);
+  // 2. Process Tailwind CSS for Options and Popup pages
+  const tempTailwindCssPath = path.join(distDir, '_temp_tailwind.css');
+  await compileTailwind(tempTailwindCssPath);
 
-  // 3. Bundle Options React script and CSS for Chrome and Firefox
+  // 3. Bundle Options & Popup React scripts and CSS for Chrome and Firefox
   const optionsEntryPoints = {
     'options/options': path.join(srcDir, 'options', 'options.jsx'),
-    'options/options-styles': tempOptionsCssPath
+    'options/options-styles': tempTailwindCssPath
   };
 
   const optionsBuildOptions = {
@@ -200,28 +199,59 @@ export async function buildExtension() {
     outdir: firefoxDir
   });
 
-  // Rename options-styles.css to options.css in both targets
+  const popupEntryPoints = {
+    'popup/popup': path.join(srcDir, 'popup', 'popup.jsx'),
+    'popup/popup-styles': tempTailwindCssPath
+  };
+
+  const popupBuildOptions = {
+    entryPoints: popupEntryPoints,
+    bundle: true,
+    minify: true,
+    target: 'es2022',
+    format: 'iife',
+    jsx: 'automatic',
+    sourcemap: false,
+    define: {
+      ...define,
+      'process.env.NODE_ENV': JSON.stringify('production')
+    },
+    loader: {
+      '.woff2': 'file',
+      '.woff': 'file'
+    },
+    assetNames: 'popup/fonts/[name]-[hash]'
+  };
+
+  esbuild.buildSync({
+    ...popupBuildOptions,
+    outdir: chromeDir
+  });
+
+  esbuild.buildSync({
+    ...popupBuildOptions,
+    outdir: firefoxDir
+  });
+
+  // Rename styles.css in both targets
   [chromeDir, firefoxDir].forEach(targetDir => {
-    const stylesOut = path.join(targetDir, 'options', 'options-styles.css');
-    const finalCss = path.join(targetDir, 'options', 'options.css');
-    if (fs.existsSync(stylesOut)) {
-      if (fs.existsSync(finalCss)) fs.unlinkSync(finalCss);
-      fs.renameSync(stylesOut, finalCss);
+    const optStylesOut = path.join(targetDir, 'options', 'options-styles.css');
+    const optFinalCss = path.join(targetDir, 'options', 'options.css');
+    if (fs.existsSync(optStylesOut)) {
+      if (fs.existsSync(optFinalCss)) fs.unlinkSync(optFinalCss);
+      fs.renameSync(optStylesOut, optFinalCss);
+    }
+
+    const popupStylesOut = path.join(targetDir, 'popup', 'popup-styles.css');
+    const popupFinalCss = path.join(targetDir, 'popup', 'popup.css');
+    if (fs.existsSync(popupStylesOut)) {
+      if (fs.existsSync(popupFinalCss)) fs.unlinkSync(popupFinalCss);
+      fs.renameSync(popupStylesOut, popupFinalCss);
     }
   });
 
-  // Sanitize internal react-dom innerHTML assignment patterns for strict MV3 & zero-innerHTML compliance
-  [chromeDir, firefoxDir].forEach(targetDir => {
-    const optJsPath = path.join(targetDir, 'options', 'options.js');
-    if (fs.existsSync(optJsPath)) {
-      let code = fs.readFileSync(optJsPath, 'utf8');
-      code = code.replaceAll('.innerHTML=', '["inner"+"HTML"]=');
-      fs.writeFileSync(optJsPath, code);
-    }
-  });
-
-  if (fs.existsSync(tempOptionsCssPath)) {
-    fs.unlinkSync(tempOptionsCssPath);
+  if (fs.existsSync(tempTailwindCssPath)) {
+    fs.unlinkSync(tempTailwindCssPath);
   }
 
   console.log('[Build] esbuild bundling completed successfully.');
@@ -236,9 +266,11 @@ export async function buildExtension() {
       }
     });
 
-    // Popup HTML & CSS
+    // Popup HTML & theme bootloader
     fs.copyFileSync(path.join(srcDir, 'popup', 'popup.html'), path.join(targetDir, 'popup', 'popup.html'));
-    fs.copyFileSync(path.join(srcDir, 'popup', 'popup.css'), path.join(targetDir, 'popup', 'popup.css'));
+    if (fs.existsSync(path.join(srcDir, 'popup', 'theme-boot.js'))) {
+      fs.copyFileSync(path.join(srcDir, 'popup', 'theme-boot.js'), path.join(targetDir, 'popup', 'theme-boot.js'));
+    }
 
     // Options HTML & theme bootloader
     fs.copyFileSync(path.join(srcDir, 'options', 'options.html'), path.join(targetDir, 'options', 'options.html'));
