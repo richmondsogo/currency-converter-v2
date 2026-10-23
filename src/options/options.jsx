@@ -77,6 +77,14 @@ import {
   validateSettings,
   SettingsManager,
 } from "../shared/settings.js";
+import { SiteModeControl } from "@/ui/components/SiteModeControl";
+import { CurrencyCombobox } from "@/ui/components/CurrencyCombobox";
+import {
+  getEffectiveSiteCaption,
+  validateDomainInput,
+  canAddPinned,
+  validateImportContent,
+} from "@/ui/lib/site-rules";
 
 const api = getBrowser();
 
@@ -382,20 +390,12 @@ export function OptionsApp() {
   const handleAddSiteRule = (e) => {
     e.preventDefault();
     setNewSiteError("");
-    const raw = newSiteDomain.trim();
-    if (!raw) {
-      setNewSiteError("Please enter a domain name (e.g. amazon.de)");
+    const check = validateDomainInput(newSiteDomain, settings.perSite);
+    if (!check.ok) {
+      setNewSiteError(check.error);
       return;
     }
-    const clean = normalizeHost(raw);
-    if (!clean || !clean.includes(".")) {
-      setNewSiteError("Please enter a valid domain containing an extension (e.g. amazon.de)");
-      return;
-    }
-    if (settings.perSite && settings.perSite[clean]) {
-      setNewSiteError(`A rule for "${clean}" already exists`);
-      return;
-    }
+    const clean = check.clean;
 
     const updatedPerSite = { ...(settings.perSite || {}) };
     updatedPerSite[clean] = {
@@ -634,87 +634,22 @@ export function OptionsApp() {
                     </p>
                   </div>
 
-                  <Popover
-                    open={targetComboboxOpen}
-                    onOpenChange={(open) => {
-                      setTargetComboboxOpen(open);
-                      if (!open) setTargetSearch("");
+                  <CurrencyCombobox
+                    triggerId="select-target-currency"
+                    value={settings.targetCurrency}
+                    onChange={(code) => {
+                      updateSettings(
+                        { targetCurrency: code, lastUsedTarget: code },
+                        `Target currency set to ${code}`
+                      );
                     }}
-                  >
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="select-target-currency"
-                        variant="outline"
-                        role="combobox"
-                        aria-label="Default target currency"
-                        aria-expanded={targetComboboxOpen}
-                        className="w-[200px] justify-between font-mono text-xs h-9 bg-background"
-                      >
-                        <span className="truncate">
-                          {settings.targetCurrency} ({selectedTargetMeta?.symbol || settings.targetCurrency})
-                        </span>
-                        <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[260px] p-0" align="end">
-                      <Command>
-                        <CommandInput
-                          placeholder="Search currencies by code or name..."
-                          value={targetSearch}
-                          onValueChange={setTargetSearch}
-                          className="h-9 text-xs"
-                        />
-                        <CommandList>
-                          <CommandEmpty className="py-4 text-center text-xs text-muted-foreground">
-                            No currency found.
-                          </CommandEmpty>
-                          <CommandGroup heading="Currencies">
-                            <ScrollArea className="h-60">
-                              {filteredTargetCurrencies.map((c) => (
-                                <CommandItem
-                                  key={c.code}
-                                  data-currency-code={c.code}
-                                  value={`${c.code} ${c.name} ${c.symbol}`}
-                                  onSelect={() => {
-                                    updateSettings(
-                                      { targetCurrency: c.code, lastUsedTarget: c.code },
-                                      `Target currency set to ${c.code}`
-                                    );
-                                    setTargetComboboxOpen(false);
-                                  }}
-                                  onClick={() => {
-                                    updateSettings(
-                                      { targetCurrency: c.code, lastUsedTarget: c.code },
-                                      `Target currency set to ${c.code}`
-                                    );
-                                    setTargetComboboxOpen(false);
-                                  }}
-                                  className="text-xs font-mono flex items-center justify-between py-1.5 cursor-pointer"
-                                >
-                                  <div className="flex items-center min-w-0">
-                                    <Check
-                                      className={`mr-2 h-3.5 w-3.5 shrink-0 ${
-                                        settings.targetCurrency === c.code
-                                          ? "opacity-100"
-                                          : "opacity-0"
-                                      }`}
-                                    />
-                                    <span className="font-semibold">{c.code}</span>
-                                    <span className="ml-2 font-sans text-muted-foreground truncate max-w-[120px]">
-                                      {c.name}
-                                    </span>
-                                  </div>
-                                  <span className="font-sans font-bold ml-1 shrink-0">
-                                    {c.symbol}
-                                  </span>
-                                </CommandItem>
-                              ))}
-                            </ScrollArea>
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                    currencies={allCurrencies}
+                    ariaLabel="Default target currency"
+                    align="end"
+                    className="w-[200px]"
+                    scrollHeight="h-60"
+                    placeholder="Search currencies by code or name..."
+                  />
                 </div>
                 <Separator />
 
@@ -1085,23 +1020,12 @@ export function OptionsApp() {
                       className="font-mono text-xs h-9 bg-background flex-1"
                     />
 
-                    <ToggleGroup
-                      type="single"
+                    <SiteModeControl
                       value={newSiteMode}
-                      onValueChange={(val) => val && setNewSiteMode(val)}
-                      className="bg-secondary p-0.5 rounded-lg border border-border shrink-0"
-                      aria-label="New rule conversion mode"
-                    >
-                      <ToggleGroupItem value="ask" aria-label="Mode Ask" className="h-8 px-2.5 text-xs">
-                        Ask
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value="always" aria-label="Mode Always" className="h-8 px-2.5 text-xs">
-                        Always
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value="never" aria-label="Mode Never" className="h-8 px-2.5 text-xs">
-                        Never
-                      </ToggleGroupItem>
-                    </ToggleGroup>
+                      onChange={setNewSiteMode}
+                      size="default"
+                      ariaLabel="New rule conversion mode"
+                    />
 
                     <Button
                       type="submit"
@@ -1177,45 +1101,20 @@ export function OptionsApp() {
                           </Tooltip>
                           {!rule.mode && (
                             <span className="text-xs text-muted-foreground mt-0.5">
-                              Uses default ({settings.autoConvertAll ? "Always" : "Ask"})
+                              {getEffectiveSiteCaption(rule, settings.autoConvertAll)}
                             </span>
                           )}
                         </div>
 
                         <div className="flex items-center space-x-2 shrink-0">
                           {/* Three-way segmented control */}
-                          <ToggleGroup
-                            type="single"
+                          <SiteModeControl
                             value={rule.mode || ""}
-                            onValueChange={(val) => {
-                              if (!val) return;
-                              handleUpdateSiteMode(host, val);
-                            }}
-                            className="bg-secondary p-0.5 rounded-lg border border-border"
-                            aria-label={`Conversion mode for ${host}`}
-                          >
-                            <ToggleGroupItem
-                              value="ask"
-                              aria-label={`Ask on ${host}`}
-                              className="text-xs h-7 px-2"
-                            >
-                              Ask
-                            </ToggleGroupItem>
-                            <ToggleGroupItem
-                              value="always"
-                              aria-label={`Always convert ${host}`}
-                              className="text-xs h-7 px-2"
-                            >
-                              Always
-                            </ToggleGroupItem>
-                            <ToggleGroupItem
-                              value="never"
-                              aria-label={`Never convert ${host}`}
-                              className="text-xs h-7 px-2"
-                            >
-                              Never
-                            </ToggleGroupItem>
-                          </ToggleGroup>
+                            onChange={(val) => handleUpdateSiteMode(host, val)}
+                            domain={host}
+                            size="sm"
+                            ariaLabel={`Conversion mode for ${host}`}
+                          />
 
                           {/* Reset mode to default if an explicit mode is set */}
                           {rule.mode && (
@@ -1232,69 +1131,20 @@ export function OptionsApp() {
                           )}
 
                           {/* Assumed Currency Combobox */}
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 px-2 text-xs font-mono bg-background"
-                                aria-label={`Assumed currency for ${host}`}
-                              >
-                                {rule.assumedCurrency || "Auto"}
-                                <ChevronsUpDown className="ml-1 h-3 w-3 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-56 p-0" align="end">
-                              <Command>
-                                <CommandInput
-                                  placeholder="Assumed currency..."
-                                  className="h-8 text-xs font-mono"
-                                />
-                                <CommandList>
-                                  <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">
-                                    None found
-                                  </CommandEmpty>
-                                  <CommandGroup>
-                                    <CommandItem
-                                      onSelect={() => handleSetAssumedCurrency(host, null)}
-                                      className="text-xs py-1.5"
-                                    >
-                                      <Check
-                                        className={`mr-2 h-3.5 w-3.5 ${
-                                          !rule.assumedCurrency ? "opacity-100" : "opacity-0"
-                                        }`}
-                                      />
-                                      <span>Auto-detect</span>
-                                    </CommandItem>
-                                    <ScrollArea className="h-48">
-                                      {allCurrencies.map((c) => (
-                                        <CommandItem
-                                          key={c.code}
-                                          value={`${c.code} ${c.name}`}
-                                          onSelect={() => handleSetAssumedCurrency(host, c.code)}
-                                          className="text-xs font-mono py-1.5 flex items-center justify-between"
-                                        >
-                                          <div className="flex items-center">
-                                            <Check
-                                              className={`mr-2 h-3.5 w-3.5 ${
-                                                rule.assumedCurrency === c.code
-                                                  ? "opacity-100"
-                                                  : "opacity-0"
-                                              }`}
-                                            />
-                                            <span>{c.code}</span>
-                                          </div>
-                                          <span className="text-muted-foreground text-xs">
-                                            {c.symbol}
-                                          </span>
-                                        </CommandItem>
-                                      ))}
-                                    </ScrollArea>
-                                  </CommandGroup>
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
+                          <CurrencyCombobox
+                            value={rule.assumedCurrency || null}
+                            onChange={(currency) => handleSetAssumedCurrency(host, currency)}
+                            currencies={allCurrencies}
+                            allowAutoDetect={true}
+                            autoDetectLabel="Auto-detect"
+                            triggerText={rule.assumedCurrency || "Auto"}
+                            ariaLabel={`Assumed currency for ${host}`}
+                            align="end"
+                            className="h-7 px-2 text-xs font-mono bg-background w-auto"
+                            popoverClassName="w-56"
+                            scrollHeight="h-48"
+                            placeholder="Assumed currency..."
+                          />
 
                           {/* Ghost Remove button */}
                           <Button
