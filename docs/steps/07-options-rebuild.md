@@ -101,13 +101,16 @@ Step 07 replaces the legacy vanilla Options page with the redesigned surface app
 
 ## 4. Bundle Size Measurements
 
-| Asset | Before (Legacy Vanilla) | After (Step 07 React + shadcn) | Status |
+| Asset | Before (Step 06 `db16e2c`) | After (Step 07 `e1aaafa`) | Status |
 |---|---|---|---|
-| `options/options.js` | 13,420 bytes (~13.1 KB) | 428,895 bytes (~418.8 KB) [~110 KB in zip] | **MEASURED** |
-| `options/options.css` | 8,920 bytes (~8.7 KB) | 35,370 bytes (~34.5 KB) | **MEASURED** |
-| `popup/popup.js` | 14,800 bytes (~14.5 KB) | ~140 KB uncompressed [Step 08 target] | **ESTIMATED** |
-| `content/content.js` | 33,524 bytes (~32.7 KB) | 33,524 bytes (~32.7 KB) | **MEASURED** (Zero React) |
-| `background.js` | 21,418 bytes (~20.9 KB) | 21,418 bytes (~20.9 KB) | **MEASURED** (Zero React) |
+| `options/options.js` | 74.3 KB (13.5 KB gzip) | 419.1 KB (128.1 KB gzip) | **[MEASURED]** |
+| `options/options.css` | 23.6 KB (4.4 KB gzip) | 34.5 KB (6.6 KB gzip) | **[MEASURED]** |
+| `popup/popup.js` | 72.3 KB (12.7 KB gzip) | 72.3 KB (12.7 KB gzip) | **[MEASURED]** (Vanilla in Step 07) |
+| `popup/popup.css` | 14.2 KB (2.9 KB gzip) | 14.2 KB (2.9 KB gzip) | **[MEASURED]** (Vanilla in Step 07) |
+| `content/content.js` | 129.2 KB (24.2 KB gzip) | 129.2 KB (24.2 KB gzip) | **[MEASURED]** (Zero React) |
+| `background.js` | 83.9 KB (16.3 KB gzip) | 83.9 KB (16.3 KB gzip) | **[MEASURED]** (Zero React) |
+| Chrome ZIP Package | 89.6 KB | 518.6 KB | **[MEASURED]** |
+| Firefox ZIP Package | 89.7 KB | 518.7 KB | **[MEASURED]** |
 
 *Verification*: `content.js` and `background.js` contain `false` for React and react-dom dependencies.
 

@@ -250,16 +250,6 @@ export async function buildExtension() {
     }
   });
 
-  // Sanitize internal react-dom innerHTML assignment patterns for strict MV3 & zero-innerHTML compliance
-  [chromeDir, firefoxDir].forEach(targetDir => {
-    const optJsPath = path.join(targetDir, 'options', 'options.js');
-    if (fs.existsSync(optJsPath)) {
-      let code = fs.readFileSync(optJsPath, 'utf8');
-      code = code.replaceAll('.innerHTML=', '["inner"+"HTML"]=');
-      fs.writeFileSync(optJsPath, code);
-    }
-  });
-
   if (fs.existsSync(tempTailwindCssPath)) {
     fs.unlinkSync(tempTailwindCssPath);
   }

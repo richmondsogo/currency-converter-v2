@@ -43,8 +43,9 @@ At the same time, browser extension environments under Manifest V3 impose strict
    - *Rejected*: While lightweight, the headless accessible primitives ecosystem (Radix UI / shadcn) is significantly more mature and standardized in the React ecosystem.
 3. **Preact**:
    - *Evaluated*: Offers a smaller footprint, but modern esbuild tree-shaking and minification for dedicated extension pages (options and popup) keeps React bundles under acceptable thresholds:
-     - **Options Page**: `options.js` 418.8 KB uncompressed (~110 KB compressed in release zip), `options.css` 34.5 KB uncompressed [**MEASURED** Step 07].
-     - **Action Popup**: `popup.js` ~140 KB uncompressed (~45 KB compressed) [**ESTIMATED** pending Step 08].
+     - **Options Page**: `options.js` 419.1 KB uncompressed (128.1 KB gzip), `options.css` 34.5 KB uncompressed [**MEASURED** Step 07 at `e1aaafa`].
+     - **Action Popup**: `popup.js` 339.0 KB uncompressed (108.5 KB gzip), `popup.css` 35.5 KB uncompressed [**MEASURED** Step 08 at `b0957ad`].
+     - **Baseline Vanilla (Step 06 `db16e2c`)**: `options.js` 74.3 KB, `popup.js` 72.3 KB, Chrome ZIP 89.6 KB [**MEASURED**].
      Radix UI primitives have first-class, verified support with standard React while in-page scripts remain pure zero-framework vanilla.
 
 ## Consequences
