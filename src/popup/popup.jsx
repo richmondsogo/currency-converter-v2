@@ -121,7 +121,9 @@ export function PopupApp() {
   // Initial load
   useEffect(() => {
     async function init() {
-      // 1. Decoupled parallel load of rates and settings
+      // Load independent extension state concurrently. Resolving the page target must
+      // not wait on a network-backed rates request: Firefox can keep that request in
+      // flight long enough for a user to click Convert before currentTab is set.
       const ratesP = loadRates();
       const settingsP = (async () => {
         try {
@@ -140,7 +142,12 @@ export function PopupApp() {
         return DEFAULT_SETTINGS;
       })();
 
-      const [_, loadedSettings] = await Promise.all([ratesP, settingsP]);
+      const tabP = getActiveTab().catch((error) => {
+        console.warn("[Popup] Could not get active tab:", error);
+        return null;
+      });
+
+      const [loadedSettings, tab] = await Promise.all([settingsP, tabP]);
 
       // 2. Query keyboard shortcut
       try {
@@ -156,14 +163,8 @@ export function PopupApp() {
         console.warn("[Popup] Could not query commands:", e);
       }
 
-      // 3. Query active tab
-      let tab = null;
-      try {
-        tab = await getActiveTab();
-        setCurrentTab(tab);
-      } catch (e) {
-        console.warn("[Popup] Could not get active tab:", e);
-      }
+      // 3. Retain the active page before rates have finished loading.
+      setCurrentTab(tab);
 
       const tabUrl = tab?.url || "";
       const restricted = isRestrictedPage(tabUrl);
@@ -231,6 +232,9 @@ export function PopupApp() {
       }
 
       setLoading(false);
+      // The request intentionally continues in the background. The converter can use
+      // its result when ready or fetch it on demand when the user acts immediately.
+      void ratesP;
     }
 
     init();
@@ -263,8 +267,18 @@ export function PopupApp() {
   // Handle conversion action
   const triggerConvert = useCallback(
     async (targetCur) => {
-      if (!currentTab || !currentTab.id) return;
-      if (isRestricted) {
+      // A toolbar popup can become interactive before its asynchronous initialization
+      // completes. Re-resolve the page instead of silently ignoring the click.
+      const activeTab = currentTab?.id ? currentTab : await getActiveTab();
+      if (!activeTab?.id) {
+        setStatusType("error");
+        setStatusMessage("Could not find an open web page to convert");
+        return;
+      }
+      if (!currentTab?.id) {
+        setCurrentTab(activeTab);
+      }
+      if (isRestricted || isRestrictedPage(activeTab.url)) {
         setStatusType("error");
         setStatusMessage("Cannot run on browser system pages");
         return;
@@ -275,10 +289,14 @@ export function PopupApp() {
       setStatusMessage("Scanning and converting...");
 
       try {
-        await ensureInjected(currentTab.id);
+        const injected = await ensureInjected(activeTab.id);
+        if (!injected) {
+          throw new Error("Could not prepare this page for conversion");
+        }
 
         const ratesData = ratesInfo || (await sendMessage({ type: MSG.GET_RATES }));
-        const norm = normalizeHost(hostname);
+        const activeHostname = hostname || new URL(activeTab.url).hostname.replace(/^www\./, "");
+        const norm = normalizeHost(activeHostname);
         const siteRule = settings?.perSite && settings.perSite[norm];
 
         const convertPayload = {
@@ -294,18 +312,18 @@ export function PopupApp() {
         };
 
         let response = null;
-        for (let attempt = 1; attempt <= 3; attempt++) {
+        for (let attempt = 1; attempt <= 4; attempt++) {
           try {
-            response = await sendTabMessage(currentTab.id, {
+            response = await sendTabMessage(activeTab.id, {
               type: MSG.CONVERT_PAGE,
               payload: convertPayload,
             });
             if (response) break;
           } catch {}
           if (attempt === 1) {
-            await injectContentScript(currentTab.id);
+            await injectContentScript(activeTab.id);
           }
-          await new Promise((r) => setTimeout(r, 100));
+          await new Promise((r) => setTimeout(r, 90 * (2 ** (attempt - 1))));
         }
 
         if (response && response.success) {

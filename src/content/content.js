@@ -37,8 +37,8 @@ function ensureHighlightStyles(doc = document) {
   style.id = 'cc-highlight-styles';
   style.textContent = `
     .cc-price-highlight {
-      background-color: rgba(37, 99, 235, 0.08) !important;
-      border-bottom: 1.5px dashed #3b82f6 !important;
+      background-color: rgba(30, 107, 82, 0.10) !important;
+      border-bottom: 1.5px dashed #1E6B52 !important;
       border-radius: 2px !important;
       padding: 0 2px !important;
       box-decoration-break: clone;
@@ -48,17 +48,17 @@ function ensureHighlightStyles(doc = document) {
     }
     @media (hover: hover) and (pointer: fine) {
       .cc-price-highlight:hover {
-        background-color: rgba(37, 99, 235, 0.16) !important;
+        background-color: rgba(30, 107, 82, 0.18) !important;
       }
     }
     @media (prefers-color-scheme: dark) {
       .cc-price-highlight {
-        background-color: rgba(96, 165, 250, 0.15) !important;
-        border-bottom-color: #60a5fa !important;
+        background-color: rgba(111, 211, 166, 0.15) !important;
+        border-bottom-color: #6FD3A6 !important;
       }
       @media (hover: hover) and (pointer: fine) {
         .cc-price-highlight:hover {
-          background-color: rgba(96, 165, 250, 0.25) !important;
+          background-color: rgba(111, 211, 166, 0.25) !important;
         }
       }
     }

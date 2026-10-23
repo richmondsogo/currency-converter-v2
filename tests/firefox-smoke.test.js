@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import { createRequire } from 'node:module';
 
 const req = createRequire(import.meta.url);
@@ -36,6 +37,11 @@ test('Firefox MV3 Smoke: Add-on loads, popup opens, and converts prices on real 
   const port = server.address().port;
   const webPageUrl = `http://127.0.0.1:${port}/test.html`;
 
+  // Firefox installs the immutable copy for this run. This prevents another test
+  // rebuilding dist/ from replacing add-on files during install or startup.
+  const extensionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cc-firefox-smoke-'));
+  fs.cpSync(path.resolve('dist/firefox'), extensionDir, { recursive: true });
+
   const options = new firefox.Options();
   options.addArguments('-headless');
   options.addArguments('-remote-allow-system-access');
@@ -47,11 +53,10 @@ test('Firefox MV3 Smoke: Add-on loads, popup opens, and converts prices on real 
     .build();
 
   try {
-    const extPath = path.resolve('dist/firefox');
-    assert.ok(fs.existsSync(extPath), 'dist/firefox must exist');
+    assert.ok(fs.existsSync(extensionDir), 'isolated Firefox extension directory must exist');
 
     // Install add-on as temporary
-    const addonId = await driver.installAddon(extPath, true);
+    const addonId = await driver.installAddon(extensionDir, true);
     assert.ok(addonId, 'Add-on must be installed with an ID');
 
     // Resolve internal extension UUID
@@ -109,5 +114,6 @@ test('Firefox MV3 Smoke: Add-on loads, popup opens, and converts prices on real 
   } finally {
     await driver.quit();
     server.close();
+    fs.rmSync(extensionDir, { recursive: true, force: true });
   }
 });
