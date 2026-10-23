@@ -47,7 +47,7 @@ export async function sendMessage(msg) {
 }
 
 /**
- * Send message to specific tab.
+ * Send message to specific tab with both Promise and callback support.
  */
 export async function sendTabMessage(tabId, msg) {
   const b = getBrowser();
@@ -55,10 +55,18 @@ export async function sendTabMessage(tabId, msg) {
     throw new Error('Browser tabs messaging is not available');
   }
 
-  return new Promise((resolve, reject) => {
+  try {
+    const res = b.tabs.sendMessage(tabId, msg);
+    if (res && typeof res.then === 'function') {
+      return await res;
+    }
+  } catch {
+    return null;
+  }
+
+  return new Promise((resolve) => {
     b.tabs.sendMessage(tabId, msg, (response) => {
-      if (b.runtime.lastError) {
-        // Silently resolve null if content script is not yet injected or tab closed
+      if (b.runtime && b.runtime.lastError) {
         resolve(null);
       } else {
         resolve(response);
@@ -68,28 +76,78 @@ export async function sendTabMessage(tabId, msg) {
 }
 
 /**
+ * Helper to query tabs supporting both Promise-based (browser.*) and callback-based (chrome.*) APIs.
+ */
+async function queryTabs(queryInfo) {
+  const b = getBrowser();
+  if (!b || !b.tabs || !b.tabs.query) return [];
+  try {
+    const p = b.tabs.query(queryInfo);
+    if (p && typeof p.then === 'function') {
+      return await p;
+    }
+  } catch {}
+  return new Promise((resolve) => {
+    b.tabs.query(queryInfo, (tabs) => {
+      resolve(tabs || []);
+    });
+  });
+}
+
+/**
  * Get active tab in current window.
  */
 export async function getActiveTab() {
   const b = getBrowser();
-  if (!b || !b.tabs || !b.tabs.query) return null;
+  if (!b || !b.tabs) return null;
 
-  return new Promise((resolve) => {
-    b.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const activeTab = tabs && tabs[0];
-      if (activeTab && activeTab.url && !activeTab.url.startsWith('chrome-extension://') && !activeTab.url.startsWith('moz-extension://')) {
-        resolve(activeTab);
-        return;
-      }
+  // 1. Explicit ?tabId= query parameter (used by test harnesses only)
+  if (typeof window !== 'undefined' && window.location && window.location.search) {
+    const params = new URLSearchParams(window.location.search);
+    const testTabId = params.get('tabId');
+    if (testTabId && b.tabs.get) {
+      try {
+        const getP = b.tabs.get(Number(testTabId));
+        if (getP && typeof getP.then === 'function') {
+          const tab = await getP;
+          if (tab) return tab;
+        } else {
+          const tab = await new Promise((resolve) => {
+            b.tabs.get(Number(testTabId), (res) => {
+              if (b.runtime?.lastError) resolve(null);
+              else resolve(res);
+            });
+          });
+          if (tab) return tab;
+        }
+      } catch {}
+    }
+  }
 
-      // Fallback for test/dev environments where popup is loaded in a tab
-      b.tabs.query({}, (allTabs) => {
-        const webTabs = allTabs?.filter(t => t.url && (t.url.startsWith('http://') || t.url.startsWith('https://')));
-        const webTab = webTabs && webTabs.length > 0 ? webTabs[webTabs.length - 1] : null;
-        resolve(webTab || activeTab || null);
-      });
-    });
-  });
+  // 2. Standard query for active tab in current window
+  try {
+    const tabs = await queryTabs({ active: true, currentWindow: true });
+    const activeTab = tabs && tabs[0];
+    if (activeTab && activeTab.url && !activeTab.url.startsWith('chrome-extension://') && !activeTab.url.startsWith('moz-extension://')) {
+      return activeTab;
+    }
+
+    // Inert fallback: ONLY if current document is an extension page (test in tab), find the latest web tab
+    const isExtensionPage = typeof window !== 'undefined' && window.location &&
+      (window.location.protocol === 'chrome-extension:' || window.location.protocol === 'moz-extension:');
+
+    if (isExtensionPage) {
+      const allTabs = await queryTabs({});
+      const webTabs = allTabs?.filter(t => t.url && (t.url.startsWith('http://') || t.url.startsWith('https://')));
+      const webTab = webTabs && webTabs.length > 0 ? webTabs[webTabs.length - 1] : null;
+      return webTab || activeTab || null;
+    }
+
+    return activeTab || null;
+  } catch (err) {
+    console.warn('[Browser] getActiveTab error:', err);
+    return null;
+  }
 }
 
 /**
@@ -100,9 +158,16 @@ export async function hasOriginPermission(origin) {
   if (!b || !b.permissions || !b.permissions.contains) return false;
 
   const pattern = origin.endsWith('/*') ? origin : `${origin}/*`;
+  try {
+    const p = b.permissions.contains({ origins: [pattern] });
+    if (p && typeof p.then === 'function') {
+      return Boolean(await p);
+    }
+  } catch {}
+
   return new Promise((resolve) => {
     b.permissions.contains({ origins: [pattern] }, (result) => {
-      if (b.runtime.lastError) resolve(false);
+      if (b.runtime && b.runtime.lastError) resolve(false);
       else resolve(Boolean(result));
     });
   });
@@ -116,13 +181,21 @@ export async function requestOriginPermission(origin) {
   if (!b || !b.permissions || !b.permissions.request) return false;
 
   const pattern = origin.endsWith('/*') ? origin : `${origin}/*`;
+  try {
+    const p = b.permissions.request({ origins: [pattern] });
+    if (p && typeof p.then === 'function') {
+      return Boolean(await p);
+    }
+  } catch {}
+
   return new Promise((resolve) => {
     b.permissions.request({ origins: [pattern] }, (granted) => {
-      if (b.runtime.lastError) resolve(false);
+      if (b.runtime && b.runtime.lastError) resolve(false);
       else resolve(Boolean(granted));
     });
   });
 }
+
 
 /**
  * Injects content script into a tab top frame if not already present.
@@ -135,13 +208,13 @@ export async function injectContentScript(tabId) {
     if (b.scripting && b.scripting.executeScript) {
       await b.scripting.executeScript({
         target: { tabId, allFrames: false },
-        files: ['content.js']
+        files: ['/content.js']
       });
       return true;
     } else if (b.tabs && b.tabs.executeScript) {
       return new Promise((resolve) => {
-        b.tabs.executeScript(tabId, { file: 'content.js', allFrames: false }, () => {
-          resolve(!b.runtime.lastError);
+        b.tabs.executeScript(tabId, { file: '/content.js', allFrames: false }, () => {
+          resolve(!b.runtime?.lastError);
         });
       });
     }
@@ -165,3 +238,4 @@ export async function ensureInjected(tabId) {
   } catch {}
   return await injectContentScript(tabId);
 }
+
