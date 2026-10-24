@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Changed
+- **Theme-Aware In-Page Dynamic Island Pill (ADR 0015)**: Replaced hard-coded OLED black/emerald styles in `src/content/ui.css` and `src/content/ui.js` with Paper & Pine CSS custom properties (`--cc-*`) scoped to `.cc-island-container`, honoring explicit `light`/`dark` settings via `data-theme` and OS preference via `@media (prefers-color-scheme: dark)` when set to `system`, with `prefers-reduced-transparency` and `prefers-contrast: more` solid surface fallbacks.
+- **Pre-Mount Content Script Theme Resolution**: `src/content/content.js` now loads the saved `theme` setting before mounting `InPageUI` for the first time so the initial paint matches the user's configured theme without a flash.
+- **Decluttered Toolbar Popup (`src/popup/popup.jsx`)**: Removed inner boxed chrome around `"Auto-detect"`, live status, pinned quick-chips, and restricted-page notice; standardized control heights (`h-9` inputs, `h-11` primary CTA, `h-7` chips) and enforced the `>= 12px` Paper & Pine type scale throughout while preserving all DOM IDs and behavioral contracts.
+
+---
+
 ## [2.0.0] - 2026-10-17
 
 ### Added
