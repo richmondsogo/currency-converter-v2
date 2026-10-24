@@ -50,7 +50,7 @@ export const INLINE_UI_CSS = `
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 2px 6px -1px rgba(0, 0, 0, 0.25);
   cursor: default;
-  overflow: visible;
+  overflow: hidden;
   will-change: transform, opacity;
   transform-origin: center top;
   transition:
@@ -120,37 +120,31 @@ export const INLINE_UI_CSS = `
   letter-spacing: -0.02em;
 }
 
-/* Expanded controls float below the compact capsule using compositor-only motion. */
+/* Expandable Grid Track (0fr -> 1fr zero-jank hardware morph) */
 .cc-island-expandable {
-  position: absolute;
-  top: calc(100% - 1px);
-  left: 50%;
-  display: flex;
-  width: max-content;
-  max-width: calc(100vw - 24px);
-  padding: 7px 10px;
-  background: #09090b;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 0 0 9999px 9999px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-  opacity: 0;
-  pointer-events: none;
-  transform: translate3d(-50%, -4px, 0) scale(0.98);
-  transition: opacity 150ms ease-out, transform 150ms ease-out;
+  display: grid;
+  grid-template-columns: 0fr;
+  transition: grid-template-columns 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
 }
 
 .cc-dynamic-island:hover .cc-island-expandable,
 .cc-dynamic-island:focus-within .cc-island-expandable,
 .cc-dynamic-island.cc-expanded .cc-island-expandable {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate3d(-50%, 0, 0) scale(1);
+  grid-template-columns: 1fr;
 }
 
 .cc-island-expandable-content {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
+  padding-left: 10px;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
   white-space: nowrap;
 }
 
@@ -158,6 +152,7 @@ export const INLINE_UI_CSS = `
 .cc-dynamic-island:focus-within .cc-island-expandable-content,
 .cc-dynamic-island.cc-expanded .cc-island-expandable-content {
   opacity: 1;
+  transform: translateX(0);
 }
 
 /* Live Exchange Rate */
@@ -202,6 +197,10 @@ export const INLINE_UI_CSS = `
   background: #27272a;
   color: #fafafa;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.cc-segment-btn:active {
+  transform: scale(0.97);
 }
 
 .cc-segment-btn:focus-visible {
@@ -372,6 +371,7 @@ export const INLINE_UI_CSS = `
 @media (prefers-reduced-motion: reduce) {
   .cc-dynamic-island,
   .cc-island-expandable,
+  .cc-island-expandable-content,
   .cc-collapsed-pill,
   .cc-tooltip {
     transition: none !important;

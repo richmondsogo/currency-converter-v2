@@ -11,6 +11,7 @@
 @layer base {
   :root {
     /* Paper & Pine (Light) */
+    color-scheme: light;
     --background: #F7F5F0;
     --foreground: #191815;
 
@@ -50,6 +51,7 @@
   @media (prefers-color-scheme: dark) {
     :root:not(.light) {
       /* Paper & Pine (Dark - System Default) */
+      color-scheme: dark;
       --background: #10100E;
       --foreground: #ECE9E2;
 
@@ -87,6 +89,7 @@
 
   .dark, [data-theme="dark"] {
     /* Paper & Pine (Dark - Explicit) */
+    color-scheme: dark;
     --background: #10100E;
     --foreground: #ECE9E2;
 
@@ -121,6 +124,7 @@
 
   .light, [data-theme="light"] {
     /* Paper & Pine (Light - Explicit) */
+    color-scheme: light;
     --background: #F7F5F0;
     --foreground: #191815;
 

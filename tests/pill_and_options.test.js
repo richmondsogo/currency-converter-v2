@@ -197,3 +197,33 @@ test('ui: Dynamic Island pill displays source -> target currency in compact view
   const countBadge = ui.barElement.querySelector('.cc-count-badge');
   assert.equal(countBadge.textContent, '4');
 });
+
+test('ui: Dynamic Island pill maintains single-capsule horizontal expansion architecture', async () => {
+  const { INLINE_UI_CSS, InPageUI } = await import('../src/content/ui.js');
+  const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+  const doc = dom.window.document;
+
+  const ui = new InPageUI({ doc, targetCurrency: 'USD', isConverted: true, convertedCount: 1 });
+  ui.mount();
+
+  // Verify DOM structure: compact row and expandable row are inside the single dynamic island pill
+  const island = ui.barElement;
+  assert.ok(island.classList.contains('cc-dynamic-island'), 'Pill must carry cc-dynamic-island class');
+
+  const compact = island.querySelector('.cc-island-compact');
+  const expandable = island.querySelector('.cc-island-expandable');
+  assert.ok(compact, 'Must contain .cc-island-compact');
+  assert.ok(expandable, 'Must contain .cc-island-expandable inside the single capsule');
+  assert.strictEqual(expandable.parentElement, island, 'Expandable row must be a direct child of the single island capsule');
+
+  const content = expandable.querySelector('.cc-island-expandable-content');
+  assert.ok(content, 'Must contain .cc-island-expandable-content');
+  assert.ok(content.querySelector('.cc-segmented'), 'Must contain segmented control inside expandable content');
+  assert.ok(content.querySelector('.cc-select'), 'Must contain currency select inside expandable content');
+  assert.ok(content.querySelector('.cc-dismiss-btn'), 'Must contain dismiss button inside expandable content');
+
+  // Verify CSS architecture: single capsule hardware morph (0fr -> 1fr grid) with overflow hidden
+  assert.match(INLINE_UI_CSS, /\.cc-dynamic-island\s*\{[^}]*overflow:\s*hidden/s, 'Capsule must clip with overflow: hidden');
+  assert.match(INLINE_UI_CSS, /\.cc-island-expandable\s*\{[^}]*grid-template-columns:\s*0fr/s, 'Expandable track must rest at 0fr');
+  assert.match(INLINE_UI_CSS, /grid-template-columns:\s*1fr/, 'Expandable track must expand to 1fr on hover/focus');
+});

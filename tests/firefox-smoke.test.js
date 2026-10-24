@@ -83,6 +83,19 @@ test('Firefox MV3 Smoke: Add-on loads, popup opens, and converts prices on real 
     `);
     assert.equal(initialStatus, 'Ready to convert');
 
+    // Verify Firefox popup theming attributes and classes
+    const popupTheme = await driver.executeScript(`
+      return {
+        hasDark: document.documentElement.classList.contains('dark'),
+        hasLight: document.documentElement.classList.contains('light'),
+        themeAttr: document.documentElement.getAttribute('data-theme'),
+        colorScheme: document.documentElement.style.colorScheme
+      };
+    `);
+    assert.ok(popupTheme.themeAttr === 'dark' || popupTheme.themeAttr === 'light', 'Firefox popup must have data-theme');
+    assert.ok(popupTheme.hasDark || popupTheme.hasLight, 'Firefox popup must have dark or light class');
+    assert.ok(popupTheme.colorScheme === 'dark' || popupTheme.colorScheme === 'light', 'Firefox popup must set colorScheme');
+
     // Click Convert this page
     await driver.executeScript(`
       document.getElementById('btn-convert-toggle')?.click();
