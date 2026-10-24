@@ -2,7 +2,8 @@
 
 - **Branch**: `step/09-cross-browser-reliability-and-polish`
 - **Target branch**: `main`
-- **Status**: IN PROGRESS
+- **Status**: Completed
+- **Base Commit**: `935058f` (`main`)
 - **Approved by owner**: 2026-10-23
 
 ## Scope
@@ -60,4 +61,27 @@ warnings 4
 
 ### Chrome browser E2E
 
-`npm run test:e2e` was started after the source changes, but the command did not complete within the available command session and therefore is **NOT RUN** as a completed verification. The existing `tests/e2e/d1-default-target.e2e.js` covers conversion through the Chrome popup, including its converted-page assertion; it must be run to completion before this step is merged.
+`npm run test:e2e` was executed to completion on 2026-10-24 and completed with **12 passed, 0 failed** in 168.56s. All real-browser conversion flows, including popup conversions, default target persistence, auto-conversions, dynamic island pill interactions, and context menus are verified.
+
+```text
+> currency-converter-v2@2.0.0 test:e2e
+> node --test --test-concurrency=1 tests/e2e/*.e2e.js
+
+✔ B1 Regression: One instance, one pill, honest count, and iframe isolation (15350.5019ms)
+✔ B3 Regression: Auto-convert trigger, hostname routing, and late-rendered prices (34190.9948ms)
+✔ C2 & C3 & C4: Gallery loads in real browser, fonts ready, 0 console errors, CDP glyph coverage, screenshots (5013.6743ms)
+✔ D1: Automatic and menu conversions ALWAYS use settings.targetCurrency (default NGN), ignoring lastUsedTarget (28241.2567ms)
+✔ E2E Options: Complete rebuild verification covering all 10 requirements (28273.1019ms)
+✔ E2E Smoke: Extension loads in real browser, service worker is alive, and options page renders (11899.912ms)
+✔ T1 Regression: Show original stays original on late mutations, re-converts cleanly (21701.7182ms)
+✔ T3 Regression: Context menu installation, listener lifecycle, and action dispatch (16275.9871ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 168564.8518
+```
+**Status**: **PASS (12/12 real browser E2E tests pass)**
