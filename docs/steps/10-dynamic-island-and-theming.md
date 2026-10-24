@@ -2,12 +2,12 @@
 
 - **Branch**: `step/10-dynamic-island-and-theming`
 - **Target branch**: `main`
-- **Pull Request**: TBD
-- **First Commit SHA**: TBD
-- **Last Commit SHA**: TBD
-- **Merge Commit SHA**: TBD
+- **Pull Request**: `https://github.com/richmondsogo/currency-convertr/pull/16`
+- **First Commit SHA**: `c8d4e50`
+- **Last Commit SHA**: `c8d4e50`
+- **Merge Commit SHA**: `4bfd55a5b28d7a1262ceaa14c3e34b92c4f8d4e0` (`4bfd55a`)
 - **Base Commit**: `a479301` (`main`)
-- **Status**: Completed / Ready for PR
+- **Status**: Landed on `main`
 - **Approved by owner**: 2026-10-24
 
 ## Scope
