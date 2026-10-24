@@ -2,7 +2,12 @@
 
 - **Branch**: `step/11-pill-theme-and-popup-redesign`
 - **Target branch**: `main`
-- **Status**: Ready for User Review & Checkpoint
+- **Pull Request**: `https://github.com/richmondsogo/currency-convertr/pull/17`
+- **First Commit SHA**: `b225a7e`
+- **Last Commit SHA**: `b225a7e`
+- **Merge Commit SHA**: `a48dec6`
+- **Status**: Landed on `main`
+- **Approved by owner**: 2026-10-24
 - **Base Commit**: `fc472e0` (`main`)
 
 ---
