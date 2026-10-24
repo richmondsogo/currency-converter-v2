@@ -2,8 +2,12 @@
 
 - **Branch**: `step/09-cross-browser-reliability-and-polish`
 - **Target branch**: `main`
-- **Status**: Completed
+- **Pull Request**: `https://github.com/richmondsogo/currency-convertr/pull/15`
+- **First Commit SHA**: `05cdf4b`
+- **Last Commit SHA**: `5b58c5d`
+- **Merge Commit SHA**: `d2c0ddd18deada92f550f453f73187d9700d8f5e` (`d2c0ddd`)
 - **Base Commit**: `935058f` (`main`)
+- **Status**: Landed on `main`
 - **Approved by owner**: 2026-10-23
 
 ## Scope

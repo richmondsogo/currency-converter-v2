@@ -80,6 +80,7 @@ All conversion requests feed into a single, unified conversion pipeline in the b
 - **Site Mode & Rules**: Tri-state site mode (`mode: 'ask' | 'always' | 'never'`) migrated and active in v3 settings schema.
 - **Options Surface**: Rebuilt in React 19 + Tailwind + shadcn/ui (Step 07) following the Paper & Pine design system, with hash routing, local typography (`Familjen Grotesk` + `Fragment Mono`), live storage sync, zero `innerHTML`, and 100% Firefox MV3 parity.
 - **Action Popup Surface**: Restyled in React 19 + Tailwind + shadcn/ui (Step 08) following the Paper & Pine design system, sharing core UI components (`SiteModeControl`, `CurrencyCombobox`), 3-way site mode segmented control, page-scoped target currency overrides (never mutating default settings), honest error classification, and resolved Firefox MV3 content script injection.
+- **Cross-Browser Reliability & Interaction Polish**: Stabilized in Step 09 with decoupled concurrent initialization, bounded exponential backoff on Firefox message delivery, Pine-aligned converted price highlights, and transform/opacity-only pill animations replacing layout-reflowing grid transitions.
 - **Auto-Convert & Idempotency**: Consolidated into a single `tabs.onUpdated` mechanism; content script re-injection is strictly idempotent; top-frame isolated.
 - **Price Tokenization**: Trailing ISO codes (`$25 CAD`) and compound prefixes (`US $133.00`) fully consumed.
 
@@ -87,6 +88,5 @@ All conversion requests feed into a single, unified conversion pipeline in the b
 
 ## Known Issues & Implementation Gaps
 1. **Auto-Collapse Implementation Gap**: `DESIGN.md` documented a 3.5s auto-collapse for the Dynamic Island pill, but this was never wired in code. It must be explicitly defined for `CONVERTED` and forbidden for `OFFER`.
-2. **Motion Layout Reflow**: The pill expansion currently transitions `grid-template-columns: 0fr -> 1fr`, causing layout calculations rather than purely compositor-driven transforms.
-3. **Redundant Manifest Permissions**: `manifest.json` ships `host_permissions: ["<all_urls>", "http://*/*", "https://*/*"]` and `permissions: [..., "tabs"]`. The wildcard duplicates require cleanup.
-4. **Combobox Component Overhaul**: Native `<select>` inside the Dynamic Island pill has a dark theme CSS stopgap (Step 05), but requires a full custom searchable combobox component.
+2. **Redundant Manifest Permissions**: `manifest.json` ships `host_permissions: ["<all_urls>", "http://*/*", "https://*/*"]` and `permissions: [..., "tabs"]`. The wildcard duplicates require cleanup.
+3. **Combobox Component Overhaul**: Native `<select>` inside the Dynamic Island pill has a dark theme CSS stopgap (Step 05), but requires a full custom searchable combobox component.
