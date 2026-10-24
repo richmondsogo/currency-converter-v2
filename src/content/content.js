@@ -3,7 +3,7 @@ import { PageScanner } from './scanner.js';
 import { InPageUI } from './ui.js';
 import { MSG } from '../shared/messaging.js';
 import { sendMessage, getBrowser } from '../shared/browser.js';
-import { shouldAutoConvertPage } from '../shared/settings.js';
+import { shouldAutoConvertPage, SETTINGS_STORAGE_KEY } from '../shared/settings.js';
 
 // Inlined ui.css for complete self-contained Shadow DOM isolation
 import uiCssText from './ui.css';
@@ -278,6 +278,18 @@ function initContentScript() {
           rateProvider
         });
         return false;
+      }
+    });
+  }
+
+  // Live storage synchronization from options and popup
+  if (api && api.storage && api.storage.onChanged) {
+    api.storage.onChanged.addListener((changes, area) => {
+      if ((area === 'local' || area === 'sync') && changes[SETTINGS_STORAGE_KEY]) {
+        currentSettings = changes[SETTINGS_STORAGE_KEY].newValue || currentSettings;
+        if (currentUI && currentSettings && currentSettings.theme) {
+          currentUI.update({ theme: currentSettings.theme });
+        }
       }
     });
   }

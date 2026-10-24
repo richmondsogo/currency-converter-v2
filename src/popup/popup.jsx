@@ -39,6 +39,7 @@ import {
   isRestrictedPage,
   isRestrictedUrl,
 } from "./popup-errors.js";
+import { applyTheme, subscribeSystemTheme } from "../shared/theme.js";
 
 const api = getBrowser();
 
@@ -48,26 +49,6 @@ function openOptionsPage(e) {
     api.runtime.openOptionsPage();
   } else if (api && api.tabs && api.tabs.create) {
     api.tabs.create({ url: api.runtime.getURL("options/options.html") });
-  }
-}
-
-function applyTheme(theme) {
-  try {
-    localStorage.setItem("currency_converter_theme", theme);
-  } catch {}
-  const root = document.documentElement;
-  const isDark =
-    theme === "dark" ||
-    (theme === "system" &&
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches);
-
-  if (isDark) {
-    root.classList.add("dark");
-    root.setAttribute("data-theme", "dark");
-  } else {
-    root.classList.remove("dark");
-    root.setAttribute("data-theme", "light");
   }
 }
 
@@ -240,10 +221,18 @@ export function PopupApp() {
     init();
   }, [loadRates]);
 
+  // Live system theme listener when theme is set to 'system'
+  useEffect(() => {
+    if (!settings || settings.theme !== "system") return;
+    return subscribeSystemTheme(() => {
+      applyTheme("system");
+    });
+  }, [settings?.theme]);
+
   // Sync settings when storage changes
   useEffect(() => {
     const handleStorageChange = (changes, area) => {
-      if (area === "local" && changes.currency_converter_settings_v2) {
+      if ((area === "local" || area === "sync") && changes.currency_converter_settings_v2) {
         const next = changes.currency_converter_settings_v2.newValue;
         if (next) {
           setSettings(next);

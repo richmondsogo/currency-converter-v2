@@ -85,6 +85,7 @@ import {
   canAddPinned,
   validateImportContent,
 } from "@/ui/lib/site-rules";
+import { applyTheme, subscribeSystemTheme } from "../shared/theme.js";
 
 const api = getBrowser();
 
@@ -129,26 +130,6 @@ const SECTIONS = [
 
 const SUGGESTED_PINNED = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "NGN", "INR"];
 const DOLLAR_CURRENCIES = ["USD", "CAD", "AUD", "NZD", "SGD", "HKD", "MXN"];
-
-function applyTheme(theme) {
-  try {
-    localStorage.setItem("currency_converter_theme", theme);
-  } catch {}
-  const root = document.documentElement;
-  const isDark =
-    theme === "dark" ||
-    (theme === "system" &&
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches);
-
-  if (isDark) {
-    root.classList.add("dark");
-    root.setAttribute("data-theme", "dark");
-  } else {
-    root.classList.remove("dark");
-    root.setAttribute("data-theme", "light");
-  }
-}
 
 export function OptionsApp() {
   const [settings, setSettings] = useState(null);
@@ -258,19 +239,9 @@ export function OptionsApp() {
   // 4. System theme listener
   useEffect(() => {
     if (!settings || settings.theme !== "system") return;
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (e) => {
-      const root = document.documentElement;
-      if (e.matches) {
-        root.classList.add("dark");
-        root.setAttribute("data-theme", "dark");
-      } else {
-        root.classList.remove("dark");
-        root.setAttribute("data-theme", "light");
-      }
-    };
-    media.addEventListener("change", handler);
-    return () => media.removeEventListener("change", handler);
+    return subscribeSystemTheme(() => {
+      applyTheme("system");
+    });
   }, [settings?.theme]);
 
   // 5. Fetch live rates and shortcut for About section

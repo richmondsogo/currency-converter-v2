@@ -303,6 +303,11 @@ export class SettingsManager {
       ...partial
     });
     await this.storage.set({ [SETTINGS_STORAGE_KEY]: updated });
+    try {
+      if (typeof localStorage !== 'undefined' && updated.theme) {
+        localStorage.setItem('currency_converter_theme', updated.theme);
+      }
+    } catch {}
     return updated;
   }
 
@@ -349,6 +354,11 @@ export class SettingsManager {
 
   async resetDefaults() {
     await this.storage.set({ [SETTINGS_STORAGE_KEY]: { ...DEFAULT_SETTINGS } });
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('currency_converter_theme', DEFAULT_SETTINGS.theme);
+      }
+    } catch {}
     return { ...DEFAULT_SETTINGS };
   }
 
@@ -361,6 +371,11 @@ export class SettingsManager {
     const parsed = JSON.parse(jsonString);
     const validated = validateSettings(parsed);
     await this.storage.set({ [SETTINGS_STORAGE_KEY]: validated });
+    try {
+      if (typeof localStorage !== 'undefined' && validated.theme) {
+        localStorage.setItem('currency_converter_theme', validated.theme);
+      }
+    } catch {}
     return validated;
   }
 }

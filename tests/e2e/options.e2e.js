@@ -171,8 +171,16 @@ test('E2E Options: Complete rebuild verification covering all 10 requirements', 
     await darkBtn.click();
     await optionsPage.waitForTimeout(500);
 
-    const isDark = await optionsPage.evaluate(() => document.documentElement.classList.contains('dark'));
-    assert.ok(isDark, 'Switching to Dark theme must immediately add "dark" class to html');
+    const darkMetrics = await optionsPage.evaluate(() => ({
+      hasDark: document.documentElement.classList.contains('dark'),
+      hasLight: document.documentElement.classList.contains('light'),
+      themeAttr: document.documentElement.getAttribute('data-theme'),
+      colorScheme: document.documentElement.style.colorScheme
+    }));
+    assert.ok(darkMetrics.hasDark, 'Switching to Dark theme must immediately add "dark" class to html');
+    assert.ok(!darkMetrics.hasLight, 'Switching to Dark theme must remove "light" class');
+    assert.equal(darkMetrics.themeAttr, 'dark', 'Dark theme must set data-theme="dark"');
+    assert.equal(darkMetrics.colorScheme, 'dark', 'Dark theme must set root colorScheme="dark"');
 
     // Reload and check persistence
     await optionsPage.reload();
@@ -184,8 +192,16 @@ test('E2E Options: Complete rebuild verification covering all 10 requirements', 
     const lightBtn = optionsPage.locator('button[aria-label="Light theme"]').first();
     await lightBtn.click();
     await optionsPage.waitForTimeout(500);
-    const isLight = await optionsPage.evaluate(() => !document.documentElement.classList.contains('dark'));
-    assert.ok(isLight, 'Switching to Light theme must remove "dark" class');
+    const lightMetrics = await optionsPage.evaluate(() => ({
+      hasDark: document.documentElement.classList.contains('dark'),
+      hasLight: document.documentElement.classList.contains('light'),
+      themeAttr: document.documentElement.getAttribute('data-theme'),
+      colorScheme: document.documentElement.style.colorScheme
+    }));
+    assert.ok(!lightMetrics.hasDark, 'Switching to Light theme must remove "dark" class');
+    assert.ok(lightMetrics.hasLight, 'Switching to Light theme must add "light" class');
+    assert.equal(lightMetrics.themeAttr, 'light', 'Light theme must set data-theme="light"');
+    assert.equal(lightMetrics.colorScheme, 'light', 'Light theme must set root colorScheme="light"');
 
     // -------------------------------------------------------------------------
     // 6. Reset to defaults requires confirmation and works
