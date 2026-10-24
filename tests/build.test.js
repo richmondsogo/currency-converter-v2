@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -10,9 +9,6 @@ const rootDir = path.resolve(__dirname, '..');
 const distChrome = path.join(rootDir, 'dist', 'chrome');
 const distFirefox = path.join(rootDir, 'dist', 'firefox');
 const packagesDir = path.join(rootDir, 'dist', 'packages');
-
-// Ensure dist is compiled on clean checkout
-execSync('node build.js', { cwd: rootDir, stdio: 'pipe' });
 
 function readZipEntries(zipPath) {
   const buf = fs.readFileSync(zipPath);
