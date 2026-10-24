@@ -499,21 +499,19 @@ export function PopupApp() {
   }, [ratesLoading, ratesError, ratesInfo]);
 
   return (
-    <div className="w-[360px] max-h-[560px] overflow-y-auto bg-background text-foreground font-sans p-4 flex flex-col gap-3.5 select-none selection:bg-accent/20">
+    <div className="w-[360px] max-h-[560px] overflow-y-auto bg-background text-foreground font-sans p-4 flex flex-col gap-4 select-none selection:bg-accent/20">
       {/* 1. Header */}
       <header className="flex items-center justify-between">
-        <div className="flex items-center space-x-2.5">
+        <div className="flex items-center gap-3">
           <span
-            className="w-7 h-7 rounded-md bg-primary text-primary-foreground flex items-center justify-center font-mono font-bold text-xs shadow-sm"
+            className="w-8 h-8 rounded-md bg-primary text-primary-foreground flex items-center justify-center font-mono font-bold text-xs"
             aria-hidden="true"
           >
             fx
           </span>
-          <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-sm tracking-tight text-foreground">
-              Currency Convertr
-            </span>
-          </div>
+          <h1 className="font-semibold text-base tracking-tight text-foreground">
+            Currency Convertr
+          </h1>
         </div>
 
         <Button
@@ -523,17 +521,17 @@ export function PopupApp() {
           onClick={openOptionsPage}
           title="Settings & Options"
           aria-label="Open settings"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-lg"
         >
           <SettingsIcon className="h-4 w-4" aria-hidden="true" />
         </Button>
       </header>
 
-      {/* 2. Unsupported / Restricted Notice */}
+      {/* 2. Unsupported / Restricted Notice (flat, warning-tinted, no border) */}
       {isRestricted && (
         <div
           id="unsupported-notice"
-          className="rounded-lg bg-secondary/80 border border-border p-3 text-xs text-muted-foreground flex items-start gap-2.5"
+          className="rounded-lg bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] px-3 py-2.5 text-sm text-foreground flex items-start gap-2.5"
         >
           <AlertCircle className="h-4 w-4 text-warning shrink-0 mt-0.5" aria-hidden="true" />
           <span className="leading-relaxed">
@@ -543,29 +541,27 @@ export function PopupApp() {
       )}
 
       {/* 3. Main Controls */}
-      <main id="main-controls" className="flex flex-col gap-3.5">
-        {/* Converter / Target Currency Block */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-medium text-muted-foreground uppercase tracking-wider text-[11px]">
+      <main id="main-controls" className="flex flex-col gap-4">
+        {/* Converter / Target Currency */}
+        <section className="space-y-2.5" aria-labelledby="target-heading">
+          <div className="flex items-center justify-between">
+            <h2 id="target-heading" className="text-sm font-medium text-muted-foreground">
               Convert this page to
-            </span>
+            </h2>
             {pageTargetCurrency === settings?.targetCurrency && (
-              <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0">
+              <Badge variant="secondary" className="text-xs font-mono px-2 py-0">
                 Default
               </Badge>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex items-center shrink-0">
-              <span
-                id="from-display"
-                className="h-9 px-2.5 rounded-md bg-secondary border border-border flex items-center text-xs font-mono text-muted-foreground"
-              >
-                Auto-detect
-              </span>
-            </div>
+          <div className="flex items-center gap-2.5">
+            <span
+              id="from-display"
+              className="shrink-0 text-sm text-muted-foreground"
+            >
+              Auto-detect
+            </span>
 
             <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
 
@@ -579,15 +575,18 @@ export function PopupApp() {
                 ariaLabel="Select target currency for this page"
                 align="end"
                 disabled={isRestricted}
-                className="w-full h-9 font-mono text-xs"
+                className="w-full h-9 font-mono text-sm"
                 placeholder="Search code or name..."
               />
             </div>
           </div>
 
-          {/* Pinned Currencies Quick Chips */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-            <span className="text-[11px] text-muted-foreground mr-0.5">Quick:</span>
+          {/* Pinned currencies: borderless chips, selected state is a quiet raised fill */}
+          <div
+            role="group"
+            aria-label="Pinned currencies"
+            className="flex flex-wrap items-center gap-1"
+          >
             {pinnedCodes.map((code) => {
               const isSelected = pageTargetCurrency === code;
               return (
@@ -597,10 +596,10 @@ export function PopupApp() {
                   onClick={() => handlePageTargetCurrencyChange(code)}
                   disabled={isRestricted}
                   aria-pressed={isSelected}
-                  className={`h-6 px-2 text-[11px] font-mono rounded-md border transition-all ${
+                  className={`h-7 px-2.5 text-xs font-mono rounded-md transition-colors disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                     isSelected
-                      ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
-                      : "bg-secondary text-foreground border-border hover:bg-secondary/70 font-normal"
+                      ? "bg-secondary text-foreground font-medium"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                   }`}
                 >
                   {code}
@@ -608,17 +607,17 @@ export function PopupApp() {
               );
             })}
           </div>
-        </div>
+        </section>
 
-        {/* 4. Action Button */}
+        {/* 4. Primary Action */}
         <Button
           id="btn-convert-toggle"
           type="button"
           disabled={converting || isRestricted}
           onClick={handleConvertToggle}
-          className={`w-full h-10 text-xs font-semibold tracking-wide transition-colors ${
+          className={`w-full h-11 text-sm font-semibold transition-[background-color,transform] motion-safe:active:scale-[0.98] ${
             isPageConverted
-              ? "bg-secondary text-foreground hover:bg-secondary/80 border border-border"
+              ? "bg-secondary text-foreground hover:bg-secondary/80 ring-1 ring-inset ring-border"
               : "bg-primary text-primary-foreground hover:bg-primary/90"
           }`}
         >
@@ -631,116 +630,120 @@ export function PopupApp() {
             : "Convert this page"}
         </Button>
 
-        {/* 5. Live Status Bar */}
+        {/* 5. Live Status (boxless: dot + text) */}
         <div
           id="live-status"
           role="status"
           aria-live="polite"
-          className="h-8 px-3 rounded-md bg-secondary/50 border border-border flex items-center gap-2 text-xs"
+          className="flex items-center gap-2 text-sm tabular-nums"
         >
           <span
             className={`w-2 h-2 rounded-full shrink-0 ${
               statusType === "converted"
                 ? "bg-accent"
                 : statusType === "converting"
-                ? "bg-muted-foreground animate-ping"
+                ? "bg-muted-foreground motion-safe:animate-ping"
                 : statusType === "error"
                 ? "bg-destructive"
-                : "bg-muted-foreground/60"
+                : "bg-muted-foreground opacity-60"
             }`}
             aria-hidden="true"
           />
-          <span className="truncate text-foreground font-mono text-[11px]">
+          <span
+            className={`truncate ${
+              statusType === "error"
+                ? "text-destructive"
+                : statusType === "converted"
+                ? "text-foreground"
+                : "text-muted-foreground"
+            }`}
+          >
             {statusMessage}
           </span>
         </div>
 
-        {/* 6. Site Rules Block (hidden on restricted pages) */}
+        {/* 6. This site (hidden on restricted pages): hairline-separated rows, no boxes */}
         {!isRestricted && (
-          <div className="pt-1 space-y-3">
+          <section className="space-y-3" aria-labelledby="site-heading">
             <Separator />
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                    Site:
-                  </span>
-                  <span
-                    id="current-domain-label"
-                    className="font-mono text-xs font-semibold text-foreground truncate max-w-[200px]"
-                    title={hostname || "Current site"}
-                  >
-                    {hostname || "Current site"}
-                  </span>
-                </div>
-
-                {siteMode && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleResetSiteMode}
-                    className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-                    title="Reset site rule to default"
-                  >
-                    Reset
-                  </Button>
-                )}
-              </div>
-
-              {/* Segmented Site Mode Control */}
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">Automatic conversion:</span>
-                <SiteModeControl
-                  value={siteMode}
-                  onChange={handleSiteModeChange}
-                  domain={hostname}
-                  size="sm"
-                  ariaLabel={`Conversion rule for ${hostname || "current site"}`}
-                />
-              </div>
-
-              {/* Default mode caption when inheriting default */}
-              {!siteMode && (
-                <div className="text-[11px] text-muted-foreground text-right">
-                  {effectiveCaption}
-                </div>
-              )}
-
-              {/* Site Assumed Currency Override */}
-              <div className="flex items-center justify-between gap-2 pt-0.5">
-                <label
-                  htmlFor="site-currency-override"
-                  className="text-xs text-muted-foreground"
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <div className="flex items-baseline gap-2 min-w-0">
+                <h2 id="site-heading" className="text-sm font-medium text-muted-foreground shrink-0">
+                  This site
+                </h2>
+                <span
+                  id="current-domain-label"
+                  className="font-mono text-sm font-medium text-foreground truncate max-w-[190px]"
+                  title={hostname || "Current site"}
                 >
-                  Prices on this site are in:
-                </label>
-                <CurrencyCombobox
-                  triggerId="site-currency-override"
-                  value={assumedCurrency}
-                  onChange={handleAssumedCurrencyChange}
-                  currencies={allCurrencies}
-                  allowAutoDetect={true}
-                  autoDetectLabel="Auto-detect"
-                  triggerText={assumedCurrency || "Auto-detect"}
-                  ariaLabel={`Prices on ${hostname || "this site"} are in`}
-                  align="end"
-                  className="h-7 px-2 text-xs font-mono bg-background w-[125px]"
-                  popoverClassName="w-56"
-                  scrollHeight="h-44"
-                  placeholder="Assumed currency..."
-                />
+                  {hostname || "Current site"}
+                </span>
               </div>
+
+              {siteMode && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleResetSiteMode}
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  title="Reset site rule to default"
+                >
+                  Reset
+                </Button>
+              )}
             </div>
-          </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-foreground">Automatic conversion</span>
+              <SiteModeControl
+                value={siteMode}
+                onChange={handleSiteModeChange}
+                domain={hostname}
+                size="sm"
+                ariaLabel={`Conversion rule for ${hostname || "current site"}`}
+              />
+            </div>
+
+            {/* Default mode caption when inheriting default */}
+            {!siteMode && (
+              <div className="text-xs text-muted-foreground text-right -mt-1.5">
+                {effectiveCaption}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-2">
+              <label
+                htmlFor="site-currency-override"
+                className="text-sm text-foreground"
+              >
+                Prices on this site are in
+              </label>
+              <CurrencyCombobox
+                triggerId="site-currency-override"
+                value={assumedCurrency}
+                onChange={handleAssumedCurrencyChange}
+                currencies={allCurrencies}
+                allowAutoDetect={true}
+                autoDetectLabel="Auto-detect"
+                triggerText={assumedCurrency || "Auto-detect"}
+                ariaLabel={`Prices on ${hostname || "this site"} are in`}
+                align="end"
+                className="h-9 px-2.5 text-xs font-mono w-[132px]"
+                popoverClassName="w-56"
+                scrollHeight="h-44"
+                placeholder="Assumed currency..."
+              />
+            </div>
+          </section>
         )}
       </main>
 
       {/* 7. Footer */}
-      <Separator className="mt-1" />
-      <footer className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+      <Separator />
+      <footer className="flex items-center justify-between gap-3 text-xs text-muted-foreground -mt-1">
         <div id="rates-meta" className="flex items-center gap-1.5 min-w-0">
-          <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
-          <span id="rates-freshness-text" className="truncate text-[11px] font-mono">
+          <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span id="rates-freshness-text" className="truncate tabular-nums">
             {ratesFreshnessText}
           </span>
           {ratesError && (
@@ -748,16 +751,16 @@ export function PopupApp() {
               id="btn-retry-rates"
               type="button"
               onClick={loadRates}
-              className="text-primary font-medium hover:underline ml-1"
+              className="text-foreground font-medium underline underline-offset-2 ml-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Retry
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           {shortcutKey && (
-            <kbd className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-secondary text-muted-foreground border border-border">
+            <kbd className="px-1.5 py-0.5 text-xs font-mono rounded bg-secondary text-muted-foreground">
               {shortcutKey}
             </kbd>
           )}
@@ -765,7 +768,7 @@ export function PopupApp() {
             id="link-options"
             href="#"
             onClick={openOptionsPage}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="text-foreground font-medium hover:underline underline-offset-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Options
           </a>

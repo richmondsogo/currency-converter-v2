@@ -3,7 +3,7 @@
 ## Overview
 **Currency Convertr** is a privacy-first, zero-bloat browser extension designed to function as "Google Translate for prices". It detects foreign currency prices on e-commerce websites and international pages, instantly converting them into the user's preferred native currency while preserving the original page layout and styling.
 
-The visual hallmark of the extension is a hardware-inspired, OLED dark **Dynamic Island pill** that floats unobtrusively at the top of the browser viewport.
+The visual hallmark of the extension is a hardware-inspired, theme-aware **Paper & Pine Dynamic Island pill** that floats unobtrusively at the top of the browser viewport and adapts to Light, Dark, and System themes.
 
 ---
 
@@ -75,12 +75,13 @@ All conversion requests feed into a single, unified conversion pipeline in the b
 - **Engine**: Cross-browser Manifest V3 (Chrome, Edge, Brave, Opera, Firefox).
 - **Build Output**: Run `npm run build`, then load `dist/chrome`; `dist/` is not tracked.
 - **DOM Engine**: Two-phase DOM walker with regex boundary parsing, split-price inner-first assembly, and open Shadow DOM traversal with byte-for-byte revert fidelity.
-- **UI System**: Custom OLED Dynamic Island pill with zero runtime frameworks, zero external CSS dependencies, isolated inside an open Shadow DOM root.
+- **UI System**: Custom theme-aware Paper & Pine Dynamic Island pill with zero runtime frameworks, zero external CSS dependencies, isolated inside an open Shadow DOM root.
 
 - **Site Mode & Rules**: Tri-state site mode (`mode: 'ask' | 'always' | 'never'`) migrated and active in v3 settings schema.
 - **Options Surface**: Rebuilt in React 19 + Tailwind + shadcn/ui (Step 07) following the Paper & Pine design system, with hash routing, local typography (`Familjen Grotesk` + `Fragment Mono`), live storage sync, zero `innerHTML`, and 100% Firefox MV3 parity.
 - **Action Popup Surface**: Restyled in React 19 + Tailwind + shadcn/ui (Step 08) following the Paper & Pine design system, sharing core UI components (`SiteModeControl`, `CurrencyCombobox`), 3-way site mode segmented control, page-scoped target currency overrides (never mutating default settings), honest error classification, and resolved Firefox MV3 content script injection.
-- **Cross-Browser Reliability & Interaction Polish**: Stabilized in Step 09 with decoupled concurrent initialization, bounded exponential backoff on Firefox message delivery, Pine-aligned converted price highlights, and transform/opacity-only pill animations replacing layout-reflowing grid transitions.
+- **Cross-Browser Reliability & Interaction Polish**: Stabilized in Step 09 with decoupled concurrent initialization, bounded exponential backoff on Firefox message delivery, and Pine-aligned converted price highlights.
+- **Dynamic Island Capsule & Theme-Aware Pill (Steps 10 & 11)**: Single-capsule Dynamic Island pill (`src/content/ui.js`, `src/content/ui.css`) themed with Paper & Pine tokens (`--cc-*` on `.cc-island-container`, ADR 0015) that loads the saved extension Theme setting (`system` | `light` | `dark`) before first paint and honors OS `prefers-color-scheme`, `prefers-reduced-transparency`, `prefers-contrast`, and `prefers-reduced-motion`; paired with a decluttered, boxless toolbar popup (`>= 12px` type scale).
 - **Auto-Convert & Idempotency**: Consolidated into a single `tabs.onUpdated` mechanism; content script re-injection is strictly idempotent; top-frame isolated.
 - **Price Tokenization**: Trailing ISO codes (`$25 CAD`) and compound prefixes (`US $133.00`) fully consumed.
 

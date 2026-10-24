@@ -58,7 +58,7 @@ Currency Convertr provides an unobtrusive, high-fidelity currency translation ex
 - **Ink-based hierarchy**: High-contrast near-black typography and ink primary actions.
 - **Deep evergreen accents**: Pine green (`#1E6B52`) in light and mint pine (`#6FD3A6`) in dark for on-states, links, and converted statuses.
 - **Dedicated extension pages (Options and Popup)**: Built on React + Tailwind + shadcn/ui.
-- **In-page Dynamic Island pill**: Isolated inside an open Shadow DOM, styled in hardware OLED black using the host system font stack.
+- **In-page Dynamic Island pill**: Isolated inside an open Shadow DOM, themed with translucent **Paper & Pine** tokens following the extension Theme setting (`system` | `light` | `dark`) while using the host system font stack.
 
 ---
 
@@ -169,13 +169,13 @@ All typography is bundled locally within the extension package (WOFF2 format via
   - "Add site" row: inline domain input + behavior selector + `"Add site"` button (SVG icon, no literal `+` character). Inline validation rejects invalid hostnames and duplicates without modal alerts.
 
 ### Toolbar Popup Layout Target (`src/popup/`)
-- **Dimensions**: `360px` fixed width, `560px` max height vertical scroll container, `14px` internal padding, zero outer container cards.
-- **Header**: Extension brand badge (`fx` in ink), title (`14px font-semibold tracking-tight`), direct icon link to Options.
-- **Converter Block**: Auto-detect source currency indicator, arrow icon, accessible searchable `CurrencyCombobox` for page-only target override, pinned currency quick-chips, and muted `"Default"` badge when matching user settings.
-- **Primary Action**: 1-click toggle button (`#btn-convert-toggle`) switching between `"Convert this page"` (ink primary) and `"Show original"` (secondary outlined).
-- **Live Status Bar**: Status dot (`bg-accent` green when converted, `bg-muted` neutral when ready, amber on error), live conversion count, exchange rates provider credit, and honest error classification.
+- **Dimensions**: `360px` fixed width, `560px` max height vertical scroll container, `16px` (`p-4`) internal padding, zero outer or inner container cards.
+- **Header**: Extension brand badge (`fx` in ink), title (`16px font-semibold tracking-tight`), direct icon button (`#btn-open-options`) to Options.
+- **Converter Block**: Sentence-case heading (`"Convert this page to"`), muted `"Default"` badge, plain muted `"Auto-detect"` source indicator (`#from-display`), arrow icon, accessible searchable `CurrencyCombobox` (`h-9`) for page-only target override, and borderless pinned currency quick-chips (`h-7`, `aria-pressed`, selected chip uses `bg-secondary text-foreground font-medium`).
+- **Primary Action**: 1-click toggle button (`#btn-convert-toggle`, `h-11`) switching between `"Convert this page"` (ink primary) and `"Show original"` (secondary ring-inset), with press feedback (`motion-safe:active:scale-[0.98]`).
+- **Live Status Line**: Boxless status line (`#live-status`, `role="status"`) with status dot (`bg-accent` pine when converted, `bg-muted-foreground` neutral when ready, `bg-destructive` on error), live conversion count, exchange rates provider credit, and honest error classification.
 - **Site Rule Block**: Active hostname in Fragment Mono, 3-way segmented control (`Ask` / `Always` / `Never`), inherited default caption (`"Uses default (Ask|Always)"`), Reset button, and optional site-wide assumed currency override combobox.
-- **Unsupported Notice**: Amber warning banner displayed on browser system, web store, and restricted extension pages.
+- **Unsupported Notice**: Flat warning-tinted banner (`#unsupported-notice`, no border box) displayed on browser system, web store, and restricted extension pages.
 - **Footer**: Live rates freshness info (`Rates: Provider, Date`), manual retry button, keyboard shortcut hint (`Alt+Shift+C`), and direct Options link.
 
 ---
@@ -184,14 +184,14 @@ All typography is bundled locally within the extension package (WOFF2 format via
 
 The in-page floating pill operates inside an open Shadow DOM root (`#cc-dynamic-island-host`) and remains pure vanilla JavaScript with zero framework dependencies.
 
-- **Placement**: Fixed top-center (`top: 14px; left: 50%; transform: translate3d(-50%, 0, 0)`), `z-index: 2147483647`.
-- **Styling**: Hardware OLED black capsule (`#09090B`) with specular hairline border (`1px solid rgba(255, 255, 255, 0.12)`) and floating elevation shadow (`0 10px 28px -6px rgba(0, 0, 0, 0.45), 0 2px 6px -1px rgba(0, 0, 0, 0.25)`).
+- **Placement**: Fixed top-center (`top: 16px; left: 50%; transform: translate3d(-50%, 0, 0)`), `z-index: 2147483647`.
+- **Styling (Theme-Aware Paper & Pine Material, ADR 0015)**: Follows the extension's Theme setting (`system` | `light` | `dark`) via `data-theme` on `.cc-island-container` and `@media (prefers-color-scheme: dark)` fallback when set to `system`. Uses translucent surfaces (`--cc-surface: rgba(247, 245, 240, 0.86)` light / `rgba(24, 24, 22, 0.86)` dark) with `backdrop-filter: blur(18px) saturate(160%)`, hairline border (`1px solid var(--cc-hairline)`), top specular highlight, and solid fallback (`--cc-surface-solid: #F7F5F0` light / `#181816` dark) under `prefers-reduced-transparency: reduce`, `prefers-contrast: more`, or when `backdrop-filter` is unsupported.
 - **Typography**: System font stack (`-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif`). Does not load extension fonts to eliminate host-page tracking exposure.
 - **State Machine**:
   - `HIDDEN / UNMOUNTED`: Not rendered on pages without detected prices.
   - `OFFER`: Initial prompt on unconfigured sites with foreign prices (`"Convert to USD?"` with `[Convert]` and `[Not now]`). Never auto-hides on a timer. Scoped Escape key dismisses within shadow root.
   - `WORKING`: Pulsating neutral dot + `"Converting..."`.
-  - `CONVERTED`: Active resting state. Status dot `#10B981` (emerald green strictly reserved for active conversions), currency pair (`EUR → USD`), and price count. Expands on hover/focus to reveal rates, `Original`/`Converted` pill toggle, and currency picker.
+  - `CONVERTED`: Active resting state. Status dot uses `--cc-accent` (pine `#1E6B52` in light, mint pine `#6FD3A6` in dark, strictly reserved for active conversions), currency pair (`EUR → USD`), and price count badge (`--cc-raised`). Expands on hover/focus to reveal rates, `Original`/`Converted` pill toggle (active segment uses `--cc-accent` / `--cc-accent-fg`), and currency picker.
   - `ORIGINAL`: Neutral dot + `"Showing original prices"`. Allows 1-click toggle back to `[Converted]`.
   - `NOTHING_FOUND`: Manual triggers with 0 prices. Dismisses after 4.0s.
   - `ERROR`: Amber dot + failure reason.

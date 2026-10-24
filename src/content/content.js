@@ -15,8 +15,37 @@ let globalRates = null;
 let rateDate = null;
 let rateProvider = null;
 let currentSettings = null;
+// Theme setting ('system' | 'light' | 'dark') for the in-page pill. Loaded on demand so the
+// first paint already matches the user's choice (currentSettings is only populated by live
+// storage changes and must not silently alter conversion fallbacks).
+let pillThemeSetting = null;
 
 const api = getBrowser();
+
+const THEME_LOAD_TIMEOUT_MS = 800;
+
+function resolvePillTheme() {
+  return currentSettings?.theme || pillThemeSetting || 'system';
+}
+
+/**
+ * Fetches the saved theme once. Never throws and never blocks conversion for long:
+ * on failure or timeout the pill falls back to following the OS ('system').
+ */
+async function ensurePillTheme() {
+  if (currentSettings?.theme || pillThemeSetting) return;
+  try {
+    const settings = await Promise.race([
+      sendMessage({ type: MSG.GET_SETTINGS }),
+      new Promise((resolve) => setTimeout(() => resolve(null), THEME_LOAD_TIMEOUT_MS))
+    ]);
+    if (settings && typeof settings.theme === 'string') {
+      pillThemeSetting = settings.theme;
+    }
+  } catch {
+    // Non-fatal: keep following the system theme.
+  }
+}
 
 function notifyBackgroundOfStatus() {
   try {
@@ -146,6 +175,9 @@ async function performConversion(options = {}) {
     null;
 
   if (shouldShowPill) {
+    // Resolve the saved theme before the first paint (no-op once known). The create check below
+    // runs synchronously after this await, so concurrent conversions cannot mount two pills.
+    if (!currentUI) await ensurePillTheme();
     if (!currentUI) {
       currentUI = new InPageUI({
         doc: document,
@@ -155,7 +187,7 @@ async function performConversion(options = {}) {
         convertedCount,
         rateDate,
         provider: rateProvider,
-        theme: currentSettings?.theme || 'system',
+        theme: resolvePillTheme(),
         onShowOriginal: () => {
           performRevert();
         },
@@ -175,7 +207,7 @@ async function performConversion(options = {}) {
         count: convertedCount,
         rateDate,
         provider: rateProvider,
-        theme: currentSettings?.theme || 'system'
+        theme: resolvePillTheme()
       });
     }
 
@@ -217,6 +249,7 @@ function performRevert() {
 }
 
 function initContentScript() {
+  void ensurePillTheme();
   // Tooltip event delegation
   document.addEventListener('mouseover', (e) => {
     if (!isConverted || !currentScanner || !currentUI) return;
@@ -288,6 +321,7 @@ function initContentScript() {
       if ((area === 'local' || area === 'sync') && changes[SETTINGS_STORAGE_KEY]) {
         currentSettings = changes[SETTINGS_STORAGE_KEY].newValue || currentSettings;
         if (currentUI && currentSettings && currentSettings.theme) {
+          pillThemeSetting = currentSettings.theme;
           currentUI.update({ theme: currentSettings.theme });
         }
       }

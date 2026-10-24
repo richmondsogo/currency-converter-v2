@@ -1,4 +1,5 @@
-/* src/content/ui.css - 60fps GPU-Accelerated Apple Dynamic Island OLED Capsule */
+/* src/content/ui.css - Theme-aware Dynamic Island capsule (Paper & Pine) */
+/* NOTE: keep in sync with INLINE_UI_CSS in src/content/ui.js (guarded by tests/pill_theme.test.js). */
 
 :host {
   all: initial;
@@ -10,7 +11,7 @@
   height: 0;
   z-index: 2147483647;
   pointer-events: none;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -20,6 +21,62 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+/* Theme tokens: Paper & Pine light is the default. */
+.cc-island-container {
+  color-scheme: light;
+  --cc-surface: rgba(247, 245, 240, 0.86);
+  --cc-surface-solid: #F7F5F0;
+  --cc-raised: #EFECE5;
+  --cc-hairline: #E2DED4;
+  --cc-text: #191815;
+  --cc-muted: #67635A;
+  --cc-accent: #1E6B52;
+  --cc-accent-fg: #FFFFFF;
+  --cc-ring: rgba(30, 107, 82, 0.4);
+  --cc-highlight: rgba(255, 255, 255, 0.7);
+  --cc-glow: none;
+  --cc-shadow: 0 10px 28px -8px rgba(25, 24, 21, 0.22), 0 2px 6px -1px rgba(25, 24, 21, 0.1);
+  --cc-shadow-lift: 0 14px 34px -8px rgba(25, 24, 21, 0.28), 0 4px 10px -1px rgba(25, 24, 21, 0.12);
+}
+
+/* System theme on a dark OS (an explicit light setting always wins). */
+@media (prefers-color-scheme: dark) {
+  .cc-island-container:not([data-theme="light"]) {
+    color-scheme: dark;
+    --cc-surface: rgba(24, 24, 22, 0.86);
+    --cc-surface-solid: #181816;
+    --cc-raised: #10100E;
+    --cc-hairline: #2A2926;
+    --cc-text: #ECE9E2;
+    --cc-muted: #9B968B;
+    --cc-accent: #6FD3A6;
+    --cc-accent-fg: #10100E;
+    --cc-ring: rgba(111, 211, 166, 0.4);
+    --cc-highlight: rgba(255, 255, 255, 0.06);
+    --cc-glow: 0 0 8px rgba(111, 211, 166, 0.5);
+    --cc-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.6), 0 2px 6px -1px rgba(0, 0, 0, 0.35);
+    --cc-shadow-lift: 0 14px 34px -8px rgba(0, 0, 0, 0.7), 0 4px 10px -1px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* Explicit dark setting. */
+.cc-island-container[data-theme="dark"] {
+  color-scheme: dark;
+  --cc-surface: rgba(24, 24, 22, 0.86);
+  --cc-surface-solid: #181816;
+  --cc-raised: #10100E;
+  --cc-hairline: #2A2926;
+  --cc-text: #ECE9E2;
+  --cc-muted: #9B968B;
+  --cc-accent: #6FD3A6;
+  --cc-accent-fg: #10100E;
+  --cc-ring: rgba(111, 211, 166, 0.4);
+  --cc-highlight: rgba(255, 255, 255, 0.06);
+  --cc-glow: 0 0 8px rgba(111, 211, 166, 0.5);
+  --cc-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.6), 0 2px 6px -1px rgba(0, 0, 0, 0.35);
+  --cc-shadow-lift: 0 14px 34px -8px rgba(0, 0, 0, 0.7), 0 4px 10px -1px rgba(0, 0, 0, 0.4);
 }
 
 .cc-island-container {
@@ -33,19 +90,22 @@
   flex-direction: column;
   align-items: center;
   z-index: 2147483647;
+  color: var(--cc-text);
 }
 
-/* 1. Apple Dynamic Island Capsule */
+/* 1. Dynamic Island capsule: a translucent Paper & Pine material */
 .cc-dynamic-island {
   display: flex;
   align-items: center;
   height: 34px;
   padding: 0 14px;
-  background-color: #09090b;
-  color: #fafafa;
+  background-color: var(--cc-surface);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  color: var(--cc-text);
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 2px 6px -1px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--cc-hairline);
+  box-shadow: inset 0 1px 0 var(--cc-highlight), var(--cc-shadow);
   cursor: default;
   overflow: hidden;
   will-change: transform, opacity;
@@ -61,8 +121,8 @@
 .cc-dynamic-island:focus-within,
 .cc-dynamic-island.cc-expanded {
   transform: scale(1.02);
-  box-shadow: 0 14px 32px -4px rgba(0, 0, 0, 0.55), 0 4px 10px -1px rgba(0, 0, 0, 0.3);
-  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow: inset 0 1px 0 var(--cc-highlight), var(--cc-shadow-lift);
+  border-color: var(--cc-muted);
 }
 
 /* Compact Inner Section */
@@ -73,51 +133,51 @@
   flex-shrink: 0;
 }
 
-/* Status Dot: Glowing Emerald (#10b981) */
+/* Status dot: pine accent while converted, muted when showing originals */
 .cc-status-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background-color: #10b981;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.65);
+  background-color: var(--cc-accent);
+  box-shadow: var(--cc-glow);
   flex-shrink: 0;
   transition: background-color 200ms ease, box-shadow 200ms ease;
 }
 
 .cc-status-dot.cc-status-inactive {
-  background-color: #71717a;
+  background-color: var(--cc-muted);
+  opacity: 0.6;
   box-shadow: none;
 }
 
 /* Currency Code & Conversion Pair */
 .cc-currency-code {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-  font-size: 12.5px;
-  font-weight: 550;
-  color: #fafafa;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cc-text);
   letter-spacing: -0.01em;
 }
 
 .cc-count-sep {
-  font-size: 11px;
-  color: #71717a;
+  font-size: 12px;
+  color: var(--cc-muted);
   user-select: none;
 }
 
 /* Count Badge */
 .cc-count-badge {
-  font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 11.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
   font-weight: 500;
-  color: #e4e4e7;
-  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--cc-text);
+  background-color: var(--cc-raised);
   padding: 1px 6px;
   border-radius: 9999px;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
 
-/* Expandable Grid Track (0fr -> 1fr zero-jank hardware morph) */
+/* Expandable Grid Track (0fr -> 1fr horizontal morph) */
 .cc-island-expandable {
   display: grid;
   grid-template-columns: 0fr;
@@ -154,19 +214,19 @@
 
 /* Live Exchange Rate */
 .cc-live-rate {
-  font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 11.5px;
-  font-weight: 450;
-  color: #a1a1aa;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--cc-muted);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
 
-/* Tactile Segmented Control: [ Original | Converted ] */
+/* Segmented control: [ Original | Converted ] (accent = on-state) */
 .cc-segmented {
   display: inline-flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--cc-raised);
   border-radius: 9999px;
   padding: 2px;
   gap: 2px;
@@ -176,24 +236,23 @@
   background: transparent;
   border: none;
   border-radius: 9999px;
-  padding: 2px 8px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-  font-size: 11px;
+  padding: 2px 9px;
+  font-family: inherit;
+  font-size: 12px;
   font-weight: 500;
-  color: #a1a1aa;
+  color: var(--cc-muted);
   cursor: pointer;
   transition: color 140ms ease, background-color 140ms ease;
   outline: none;
 }
 
 .cc-segment-btn:hover {
-  color: #fafafa;
+  color: var(--cc-text);
 }
 
 .cc-segment-btn.active {
-  background: #27272a;
-  color: #fafafa;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  background: var(--cc-accent);
+  color: var(--cc-accent-fg);
 }
 
 .cc-segment-btn:active {
@@ -201,11 +260,11 @@
 }
 
 .cc-segment-btn:focus-visible {
-  outline: 1.5px solid #fafafa;
-  outline-offset: 1px;
+  outline: 2px solid var(--cc-accent);
+  outline-offset: 2px;
 }
 
-/* Quick Currency Select Dropdown inside Island */
+/* Quick currency select inside the island */
 .cc-select-wrapper {
   position: relative;
   display: inline-flex;
@@ -215,53 +274,49 @@
 .cc-select {
   appearance: none;
   -webkit-appearance: none;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #fafafa;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 11px;
+  background: var(--cc-raised);
+  border: 1px solid var(--cc-hairline);
+  color: var(--cc-text);
+  font-family: inherit;
+  font-size: 12px;
   font-weight: 500;
-  height: 22px;
-  padding: 0 16px 0 6px;
-  border-radius: 4px;
+  height: 24px;
+  padding: 0 18px 0 7px;
+  border-radius: 6px;
   cursor: pointer;
   outline: none;
   transition: border-color 140ms ease;
 }
 
 .cc-select:hover {
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: var(--cc-muted);
 }
 
 .cc-select:focus-visible {
-  border-color: #fafafa;
+  border-color: var(--cc-accent);
+  box-shadow: 0 0 0 3px var(--cc-ring);
 }
 
-/* STOPGAP: Ensure native select options are legible on dark background */
+/* Native option list follows the theme (color-scheme handles the popup chrome) */
 .cc-select option {
-  background-color: #18181b !important;
-  color: #fafafa !important;
-}
-
-.cc-select option:checked {
-  background-color: #27272a !important;
-  color: #ffffff !important;
+  background-color: var(--cc-surface-solid);
+  color: var(--cc-text);
 }
 
 .cc-select-arrow {
   position: absolute;
-  right: 5px;
+  right: 6px;
   pointer-events: none;
-  color: #a1a1aa;
+  color: var(--cc-muted);
   display: flex;
   align-items: center;
 }
 
-/* Clean Dismiss / Close Button */
+/* Dismiss / Close Button */
 .cc-dismiss-btn {
   background: transparent;
   border: none;
-  color: #71717a;
+  color: var(--cc-muted);
   padding: 4px;
   border-radius: 50%;
   display: inline-flex;
@@ -273,8 +328,8 @@
 }
 
 .cc-dismiss-btn:hover {
-  color: #fafafa;
-  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--cc-text);
+  background-color: var(--cc-raised);
   transform: scale(1.1);
 }
 
@@ -283,7 +338,8 @@
 }
 
 .cc-dismiss-btn:focus-visible {
-  outline: 1.5px solid #fafafa;
+  outline: 2px solid var(--cc-accent);
+  outline-offset: 1px;
 }
 
 /* Collapsed Mini Pill */
@@ -293,34 +349,42 @@
   gap: 6px;
   height: 28px;
   padding: 0 10px;
-  background-color: #09090b;
-  color: #fafafa;
+  background-color: var(--cc-surface);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  color: var(--cc-text);
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--cc-hairline);
+  box-shadow: inset 0 1px 0 var(--cc-highlight), var(--cc-shadow);
   cursor: pointer;
-  font-size: 11px;
+  font-family: inherit;
+  font-size: 12px;
   font-weight: 500;
   transition: transform 180ms ease, opacity 180ms ease;
 }
 
 .cc-collapsed-pill:hover {
   transform: scale(1.05);
-  border-color: rgba(255, 255, 255, 0.28);
+  border-color: var(--cc-muted);
 }
 
-/* 2. Precision OLED Hover Tooltip */
+.cc-collapsed-pill:focus-visible {
+  outline: 2px solid var(--cc-accent);
+  outline-offset: 2px;
+}
+
+/* 2. Hover tooltip (solid surface: it overlays arbitrary page text) */
 .cc-tooltip {
   position: fixed;
   display: none;
   flex-direction: column;
-  background: #09090b;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--cc-surface-solid);
+  border: 1px solid var(--cc-hairline);
   border-radius: 6px;
   padding: 6px 10px;
-  color: #fafafa;
+  color: var(--cc-text);
   font-size: 11.5px;
-  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--cc-shadow);
   pointer-events: none;
   z-index: 2147483647;
   max-width: 280px;
@@ -336,18 +400,17 @@
 }
 
 .cc-tooltip-title {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
   font-size: 11.5px;
-  font-weight: 500;
-  color: #fafafa;
+  font-weight: 600;
+  color: var(--cc-text);
   margin-bottom: 2px;
   letter-spacing: -0.01em;
 }
 
 .cc-tooltip-sub {
-  font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 10.5px;
-  color: #a1a1aa;
+  color: var(--cc-muted);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
@@ -356,16 +419,43 @@
   position: absolute;
   width: 6px;
   height: 6px;
-  background: #09090b;
-  border-right: 1px solid rgba(255, 255, 255, 0.14);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--cc-surface-solid);
+  border-right: 1px solid var(--cc-hairline);
+  border-bottom: 1px solid var(--cc-hairline);
   transform: rotate(45deg);
   bottom: -4px;
   left: 50%;
   margin-left: -3px;
 }
 
-/* 3. Reduced Motion Fallback */
+/* 3. Accessibility: transparency, contrast and motion preferences */
+@media (prefers-reduced-transparency: reduce) {
+  .cc-dynamic-island,
+  .cc-collapsed-pill {
+    background-color: var(--cc-surface-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .cc-dynamic-island,
+  .cc-collapsed-pill {
+    background-color: var(--cc-surface-solid);
+  }
+}
+
+@media (prefers-contrast: more) {
+  .cc-dynamic-island,
+  .cc-collapsed-pill,
+  .cc-tooltip {
+    background-color: var(--cc-surface-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-color: var(--cc-muted);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cc-dynamic-island,
   .cc-island-expandable,
